@@ -70,6 +70,8 @@ def test_file_generation_uses_metadata_without_claiming_wazuh_rule_id(
     assert "expected_level = 10" in generated
     assert "T1110.001" in generated
     assert "response.rule_mitre_ids" in generated
+    assert "assert response.alert" in generated
+    assert "response.rule_level >= expected_level" in generated
     assert "response.rule_id ==" not in generated
 
 
