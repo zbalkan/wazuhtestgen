@@ -60,7 +60,7 @@ output/
   test_*.py                   # editable pytest tests, runnable and expected to fail initially
 ```
 
-Generated tests are runnable immediately as Red-phase TDD scaffolding. Failure is expected until the user's ruleset implements the proposed detection. Do not use `pytest.mark.skip` or `pytest.mark.xfail` to hide unmet expectations. Distinguish assertion failures from test infrastructure errors. Expected severity and ATT&CK IDs are best-effort, editable proposals, not guarantees. Never modify live Wazuh rules automatically. Prefer compact manifest or external fixture files over embedded enormous JSON lists when input sizes warrant it.
+The assertion contract is: event X produces an alert with level >= proposed minimum Y and contains ATT&CK technique/subtechnique Z. A matched rule without an emitted alert is insufficient. Higher alert levels satisfy the expectation. Generated tests are runnable immediately as Red-phase TDD scaffolding. Failure is expected until the user's ruleset implements the proposed detection. Do not use `pytest.mark.skip` or `pytest.mark.xfail` to hide unmet expectations. Distinguish assertion failures from test infrastructure errors. Expected severity and ATT&CK IDs are best-effort, editable proposals, not guarantees. Never modify live Wazuh rules automatically. Prefer compact manifest or external fixture files over embedded enormous JSON lists when input sizes warrant it.
 
 ## Acceptance tests
 
