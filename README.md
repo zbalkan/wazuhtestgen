@@ -14,7 +14,7 @@ EVTX and rule XML are different. They provide source material but do not contain
 
 ## Requirements
 
-`wazuhtestgen` requires Python 3.9 or newer. EVTX conversion additionally requires Windows; the `wazuhevtx` dependency is installed automatically on Windows.
+`wazuhtestgen` requires Python 3.9 or newer. EVTX conversion additionally requires Windows; the `wazuhevtx` dependency is installed automatically on Windows. The experimental `zircolite` command uses a separately installed Zircolite executable, preserving the Python 3.9 support floor even though Zircolite source requires Python 3.11+.
 
 ## Generated test dependencies
 
@@ -39,15 +39,16 @@ The `wazuhtester` pytest plugin can therefore skip tests that require Wazuh when
 Top level:
 
 ```text
-usage: wazuhtestgen [-h] [--debug] {ini,evtx,rule} ...
+usage: wazuhtestgen [-h] [--debug] {ini,evtx,zircolite,rule} ...
 
 wazuhtestgen generates pytest-formatted Wazuh rule tests from Wazuh
 INI regression tests, Windows EVTX files, or Wazuh rule XML.
 
 positional arguments:
-  {ini,evtx,rule}
+  {ini,evtx,zircolite,rule}
     ini             Generate pytest tests from Wazuh INI regression tests.
     evtx            Generate editable pytest templates from EVTX files.
+    zircolite       Generate executable atomic detection pytest drafts using Zircolite.
     rule            Generate editable pytest templates from Wazuh rule XML files.
 
 options:
@@ -66,6 +67,14 @@ EVTX:
 ```text
 wazuhtestgen evtx --input_dir INPUT_DIR --output_dir OUTPUT_DIR
 ```
+
+Zircolite (experimental):
+
+```text
+wazuhtestgen zircolite --input_dir INPUT_DIR --output_dir OUTPUT_DIR --zircolite-executable Zircolite.exe
+```
+
+See [experimental Zircolite design](docs/experimental-zircolite.md) for the optional `--ruleset` flag, Sigma metadata mapping, the atomic-only scope, and the Python 3.11+ requirement of upstream Zircolite when run from source.
 
 Wazuh rules:
 
@@ -193,6 +202,10 @@ def test_scenario() -> None:
 ```
 
 The generator deliberately does not invent a rule ID, MITRE ATT&CK technique, or other expected detection from the EVTX contents.
+
+## Experimental Zircolite atomic output
+
+The `zircolite` command consumes the same EVTX files as `wazuhevtx`, runs Zircolite against each, and joins atomic Sigma detections to the Wazuh-compatible JSON events. It produces runnable parametrized pytest cases with proposed minimum alert severity and MITRE ATT&CK IDs. Initial assertion failures are expected in Red–Green–Refactor TDD. Aggregate/correlation Sigma results are excluded until temporal replay semantics can be implemented reliably. The existing `evtx` command remains skipped-template generation and is unchanged.
 
 ## Generated output directory
 
