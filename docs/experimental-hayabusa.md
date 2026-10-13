@@ -82,3 +82,7 @@ The assertion contract is: event X produces an alert with level >= proposed mini
 3. Add opt-in Hayabusa subprocess runner + timeline import.
 4. Generate evidence-ranked atomic candidates, advisory metadata comparisons, and runnable Red-phase pytest templates.
 5. Experiment with temporal candidate mining only after an explicit sequence model and Wazuh logtest oracle are available.
+
+## ATT&CK compatibility policy
+
+Normalize Sigma technique and subtechnique tags to uppercase `Txxxx` or `Txxxx.xxx`, then consult `internal/attack_mapping.py`. Only explicit, historically verified compatibility pairs are overridden; all other technique IDs remain unchanged. The exception table begins empty intentionally. Do not infer a fallback to parent techniques, rewrite based on names, or require runtime network access to MITRE catalogs. Unknown/current IDs may yield a Red result against an older Wazuh ruleset; this is an editable TDD template rather than proof of a detection defect. Preserve the source tag in generated metadata when a future override is added.
