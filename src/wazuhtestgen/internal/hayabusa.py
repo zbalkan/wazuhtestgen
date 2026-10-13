@@ -175,7 +175,7 @@ class HayabusaConverter:
                     ")\n"
                     "def test_hayabusa_detection(log, expected_level, expected_mitre_ids) -> None:\n"
                     "    # Proposed expectations: edit to fit your installed Wazuh ruleset.\n"
-                    "    # Optional: assert response.rule_id == '<your_rule_id>'\n"
+                    "    # Optional: add a ruleset-specific rule-ID assertion\n"
                     "    assert expected_level is not None, 'Set minimum level using your ruleset policy'\n"
                     "    response = send_log(log, log_format='json')\n"
                     "    assert response.status is LogtestStatus.RuleMatch\n"
