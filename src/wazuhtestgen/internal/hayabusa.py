@@ -196,8 +196,8 @@ class HayabusaConverter:
                 "# Review expected levels, MITRE IDs, and optional rule ID before Green.\n"
                 "import pytest\nfrom wazuhtester import LogtestStatus, send_log\n"
                 "pytestmark = pytest.mark.wazuh_logtest\n\n"
-                + f"# Hayabusa non-event/correlation findings skipped: {skipped_non_event}\\n"
-                + f"# Unmatched/ambiguous atomic findings skipped: {unresolved}\\n\\n"
+                + f"# Hayabusa non-event/correlation findings skipped: {skipped_non_event}\n"
+                + f"# Unmatched/ambiguous atomic findings skipped: {unresolved}\n\n"
                 + test_code,
                 encoding="utf-8",
             )
