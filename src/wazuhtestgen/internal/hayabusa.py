@@ -11,6 +11,7 @@ from collections import defaultdict
 from typing import Any, Iterable
 
 from .naming import identifier
+from .attack_mapping import map_attack_id
 
 TECHNIQUE = re.compile(r"^(?:attack[.:])?(t\d{4}(?:\.\d{3})?)$", re.I)
 # These are advisory, editable review levels, NOT an official Sigma-Wazuh mapping.
@@ -32,7 +33,7 @@ def map_attack_tags(value: Any) -> tuple[str, ...]:
     for tag in tags:
         match = TECHNIQUE.fullmatch(str(tag).strip().strip("'\""))
         if match:
-            ids.add(match.group(1).upper())
+            ids.add(map_attack_id(match.group(1).upper()))
     return tuple(sorted(ids))
 
 
