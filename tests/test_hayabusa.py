@@ -68,12 +68,15 @@ def test_file_generation_uses_metadata_without_claiming_wazuh_rule_id(
     assert "@pytest.mark.skip(" not in generated
     assert "Best-effort TDD drafts" in generated
     assert "assert response.status is LogtestStatus.RuleMatch" in generated
-    assert "expected_level = 10" in generated
+    assert "@pytest.mark.parametrize(" in generated
+    assert generated.count("pytest.param(") == 1
+    assert generated.count("def test_hayabusa_detection(") == 1
+    assert "        10," in generated
     assert "T1110.001" in generated
     assert "response.rule_mitre_ids" in generated
     assert "assert response.alert" in generated
     assert "response.rule_level >= expected_level" in generated
-    assert "response.rule_id ==" not in generated
+    assert "assert response.rule_id ==" not in generated
 
 
 def test_jsonl_reader(tmp_path) -> None:
@@ -92,3 +95,65 @@ def test_attack_mapper_only_uses_explicit_exception(monkeypatch) -> None:
     assert map_attack_tags(["attack.t1234.001", "attack.t8888.001"]) == (
         "T1234", "T8888.001"
     )
+
+
+def test_multiple_findings_generate_independent_parametrized_cases(
+    tmp_path, monkeypatch,
+) -> None:
+    source = tmp_path / "source"
+    output = tmp_path / "output"
+    source.mkdir()
+    (source / "sample.evtx").write_bytes(b"fixture")
+
+    class Converter:
+        def to_json(self, _path):
+            return iter([log(1), log(2)])
+
+    first = finding(1)
+    second = dict(finding(1))
+    second["RuleID"] = "8ad49a15-0451-4f64-bd84-2db59f46d692"
+    second["MitreTags"] = ["attack.t1059.001"]
+    third = finding(2)
+    third["Level"] = "medium"
+    monkeypatch.setattr(
+        "wazuhtestgen.internal.hayabusa.run_hayabusa",
+        lambda *_args: [first, second, third],
+    )
+
+    HayabusaConverter(Converter()).convert(str(source), str(output))
+    generated = (output / "test_hayabusa_sample.py").read_text(encoding="utf-8")
+    tree = ast.parse(generated)
+
+    functions = [node for node in tree.body if isinstance(node, ast.FunctionDef)]
+    assert len(functions) == 1
+    assert functions[0].name == "test_hayabusa_detection"
+    assert generated.count("pytest.param(") == 3
+    assert generated.count("record_1_sigma_") == 2
+    assert generated.count("record_2_sigma_") == 1
+    assert "T1059.001" in generated
+    assert "        7," in generated
+    assert "response.rule_level >= expected_level" in generated
+
+
+def test_no_correlations_does_not_generate_empty_parametrized_test(
+    tmp_path, monkeypatch,
+) -> None:
+    source = tmp_path / "source"
+    output = tmp_path / "output"
+    source.mkdir()
+    (source / "sample.evtx").write_bytes(b"fixture")
+
+    class Converter:
+        def to_json(self, _path):
+            return iter([log(1)])
+
+    monkeypatch.setattr(
+        "wazuhtestgen.internal.hayabusa.run_hayabusa",
+        lambda *_args: [],
+    )
+    HayabusaConverter(Converter()).convert(str(source), str(output))
+    generated = (output / "test_hayabusa_sample.py").read_text(encoding="utf-8")
+    ast.parse(generated)
+    assert "def test_hayabusa_detection(" not in generated
+    assert "pytest.param(" not in generated
+    assert "No correlated Hayabusa detections" in generated
