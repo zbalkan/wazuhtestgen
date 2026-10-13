@@ -226,7 +226,7 @@ def test_hayabusa_cli_disables_abbreviations_for_exact_channel_join(
         executed.extend(command)
         from pathlib import Path
         output = Path(command[command.index("--output") + 1])
-        output.write_text(json.dumps(finding(1)) + "\\n", encoding="utf-8")
+        output.write_text(json.dumps(finding(1)) + "\n", encoding="utf-8")
         return SimpleNamespace(returncode=0, stdout="", stderr="")
 
     monkeypatch.setattr(
