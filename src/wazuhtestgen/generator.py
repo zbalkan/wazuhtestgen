@@ -51,7 +51,7 @@ def _parse_args() -> argparse.Namespace:
     args = parser.parse_args()
     if args.command in ("evtx", "hayabusa") and platform.system() != "Windows":
         parser.error(
-            "the evtx and hayabusa commands require Windows, because wazuhevtx reads EVTX "
+            f"the {args.command} command requires Windows, because wazuhevtx reads EVTX "
             "files through the Windows event log API. The ini and rule commands "
             "run on any operating system."
         )
