@@ -3,6 +3,7 @@ from __future__ import annotations
 import ast
 import json
 
+from wazuhtestgen.internal.attack_mapping import ATTACK_ID_OVERRIDES, map_attack_id
 from wazuhtestgen.internal.hayabusa import (
     HayabusaConverter, correlate, map_attack_tags, read_jsonl,
 )
@@ -79,3 +80,15 @@ def test_jsonl_reader(tmp_path) -> None:
     path = tmp_path / "timeline.jsonl"
     path.write_text(json.dumps(finding(1)) + "\n", encoding="utf-8")
     assert read_jsonl(path)[0]["RecordID"] == 1
+
+
+def test_attack_mapper_defaults_to_identity() -> None:
+    assert map_attack_id("t1110.001") == "T1110.001"
+    assert map_attack_tags(["attack.t1110.001", "T1059"]) == ("T1059", "T1110.001")
+
+
+def test_attack_mapper_only_uses_explicit_exception(monkeypatch) -> None:
+    monkeypatch.setitem(ATTACK_ID_OVERRIDES, "T1234.001", "T1234")
+    assert map_attack_tags(["attack.t1234.001", "attack.t8888.001"]) == (
+        "T1234", "T8888.001"
+    )
