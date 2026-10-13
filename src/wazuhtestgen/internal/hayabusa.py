@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import pathlib
 import re
 import shutil
@@ -15,8 +16,13 @@ from .attack_mapping import map_attack_id
 
 TECHNIQUE = re.compile(r"^(?:attack[.:])?(t\d{4}(?:\.\d{3})?)$", re.I)
 # These are advisory, editable review levels, NOT an official Sigma-Wazuh mapping.
-DEFAULT_LEVELS = {"informational": 3, "low": 5, "medium": 7,
-                  "high": 10, "critical": 12}
+DEFAULT_LEVELS = {
+    "informational": 3, "info": 3,
+    "low": 5,
+    "medium": 7, "med": 7,
+    "high": 10,
+    "critical": 13, "crit": 13,
+}
 
 
 def map_attack_tags(value: Any) -> tuple[str, ...]:
@@ -24,7 +30,7 @@ def map_attack_tags(value: Any) -> tuple[str, ...]:
     if value is None:
         return ()
     if isinstance(value, str):
-        tags = re.split(r"[,;\s]+", value.strip("[]"))
+        tags = re.split(r"[,;\s|¦]+", value.strip("[]"))
     elif isinstance(value, (list, tuple, set)):
         tags = value
     else:
@@ -56,6 +62,16 @@ def finding_identity(item: dict[str, Any]) -> tuple[str, str, str, str] | None:
             str(values[2]), str(values[3]))
 
 
+def is_replayable_finding(item: dict[str, Any]) -> bool:
+    """Only an event with a numeric RecordID can be replayed atomically.
+
+    Hayabusa aggregation/correlation rows use RecordID '-' instead of an
+    individual Windows event record. Missing IDs are also not replayable.
+    """
+    value = item.get("RecordID")
+    return not isinstance(value, bool) and str(value).isdecimal()
+
+
 def read_jsonl(path: pathlib.Path) -> list[dict[str, Any]]:
     with path.open(encoding="utf-8-sig") as stream:
         return [json.loads(line) for line in stream if line.strip()]
@@ -69,7 +85,8 @@ def run_hayabusa(evtx_path: pathlib.Path, executable: str = "hayabusa") -> list[
         output = pathlib.Path(tmp) / "timeline.jsonl"
         command = [resolved, "dfir-timeline", "--file", str(evtx_path),
                    "--output-type", "jsonl", "--profile", "verbose",
-                   "--output", str(output), "--no-wizard", "--quiet"]
+                   "--output", str(output), "--no-wizard", "--quiet",
+                   "--disable-abbreviations"]
         result = subprocess.run(command, capture_output=True, text=True,
                                 check=False, timeout=900)
         if result.returncode:
@@ -114,9 +131,15 @@ class HayabusaConverter:
                 continue
             logs = list(self.evtx_converter.to_json(evtx))
             findings = run_hayabusa(evtx, self.executable)
-            matched, unresolved = correlate(logs, findings)
-            if unresolved:
-                raise ValueError(f"{evtx}: {unresolved} Hayabusa findings cannot be uniquely correlated")
+            event_findings = [item for item in findings if is_replayable_finding(item)]
+            skipped_non_event = len(findings) - len(event_findings)
+            matched, unresolved = correlate(logs, event_findings)
+            if skipped_non_event or unresolved:
+                logging.warning(
+                    "Hayabusa %s: %d non-event/correlation rows skipped, "
+                    "%d event rows could not be uniquely matched",
+                    evtx, skipped_non_event, unresolved,
+                )
             # One parametrized test per EVTX file. Each Hayabusa finding remains
             # an independently reported pytest case, even for shared records.
             cases: list[str] = []
@@ -134,7 +157,7 @@ class HayabusaConverter:
                     fallback="case",
                 )
                 cases.append(
-                    f"    # Sigma: {rule_uuid}; title: {title.encode('unicode_escape').decode('ascii')}\n"
+                    f"    # Sigma: {rule_uuid.encode('unicode_escape').decode('ascii')}; title: {title.encode('unicode_escape').decode('ascii')}\n"
                     f"    pytest.param(\n"
                     f"        {logs[index]!r},\n"
                     f"        {level!r},\n"
@@ -159,6 +182,7 @@ class HayabusaConverter:
                     "    assert response.alert\n"
                     "    assert response.rule_level is not None\n"
                     "    assert response.rule_level >= expected_level\n"
+                    "    assert expected_mitre_ids, 'Set expected ATT&CK technique IDs for this case'\n"
                     "    assert set(expected_mitre_ids) <= response.rule_mitre_ids\n\n"
                 )
             else:
@@ -171,6 +195,9 @@ class HayabusaConverter:
                 "# Best-effort TDD drafts: initial assertion failures are expected (Red).\n"
                 "# Review expected levels, MITRE IDs, and optional rule ID before Green.\n"
                 "import pytest\nfrom wazuhtester import LogtestStatus, send_log\n"
-                "pytestmark = pytest.mark.wazuh_logtest\n\n" + test_code,
+                "pytestmark = pytest.mark.wazuh_logtest\n\n"
+                + f"# Hayabusa non-event/correlation findings skipped: {skipped_non_event}\\n"
+                + f"# Unmatched/ambiguous atomic findings skipped: {unresolved}\\n\\n"
+                + test_code,
                 encoding="utf-8",
             )
