@@ -5,7 +5,8 @@ import json
 
 from wazuhtestgen.internal.attack_mapping import ATTACK_ID_OVERRIDES, map_attack_id
 from wazuhtestgen.internal.hayabusa import (
-    HayabusaConverter, correlate, map_attack_tags, read_jsonl,
+    HayabusaConverter, correlate, is_replayable_finding,
+    map_attack_tags, read_jsonl, run_hayabusa,
 )
 
 
@@ -157,3 +158,92 @@ def test_no_correlations_does_not_generate_empty_parametrized_test(
     assert "def test_hayabusa_detection(" not in generated
     assert "pytest.param(" not in generated
     assert "No correlated Hayabusa detections" in generated
+
+
+def test_correlation_results_are_not_atomic_events() -> None:
+    correlation = {
+        "RecordID": "-", "RuleID": "23179f25-6fce-4827-bae1-b219deaf563e",
+        "RuleTitle": "PW Guessing", "Details": {"Count": 5},
+    }
+    assert not is_replayable_finding(correlation)
+    assert not is_replayable_finding({"RecordID": None})
+    assert not is_replayable_finding({"RecordID": "invalid"})
+    assert is_replayable_finding(finding(14021))
+
+
+def test_correlations_and_unmatched_events_do_not_block_atomic_generation(
+    tmp_path, monkeypatch,
+) -> None:
+    source = tmp_path / "source"
+    output = tmp_path / "output"
+    source.mkdir()
+    (source / "sample.evtx").write_bytes(b"fixture")
+
+    class Converter:
+        def to_json(self, _path):
+            return iter([log(1), log(2), log(3)])
+
+    first = finding(1)
+    first["Level"] = "info"
+    second = finding(2)
+    second["Level"] = "med"
+    third = finding(3)
+    third["Level"] = "crit"
+    correlation = {
+        **finding(1),
+        "RecordID": "-",
+        "RuleID": "23179f25-6fce-4827-bae1-b219deaf563e",
+        "RuleTitle": "PW Guessing",
+    }
+    unmatched = finding(999)
+    monkeypatch.setattr(
+        "wazuhtestgen.internal.hayabusa.run_hayabusa",
+        lambda *_args: [correlation, unmatched, first, second, third],
+    )
+    HayabusaConverter(Converter()).convert(str(source), str(output))
+    generated = (output / "test_hayabusa_sample.py").read_text(encoding="utf-8")
+    ast.parse(generated)
+    assert generated.count("pytest.param(") == 3
+    assert "23179f25" not in generated
+    assert "# Hayabusa non-event/correlation findings skipped: 1" in generated
+    assert "# Unmatched/ambiguous atomic findings skipped: 1" in generated
+    assert "        3," in generated
+    assert "        7," in generated
+    assert "        13," in generated
+    assert "assert expected_mitre_ids" in generated
+
+
+def test_hayabusa_cli_disables_abbreviations_for_exact_channel_join(
+    tmp_path, monkeypatch,
+) -> None:
+    from types import SimpleNamespace
+
+    evtx = tmp_path / "sample.evtx"
+    evtx.write_bytes(b"fixture")
+    executed = []
+
+    def fake_run(command, **_kwargs):
+        executed.extend(command)
+        from pathlib import Path
+        output = Path(command[command.index("--output") + 1])
+        output.write_text(json.dumps(finding(1)) + "\\n", encoding="utf-8")
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr(
+        "wazuhtestgen.internal.hayabusa.shutil.which",
+        lambda command: "C:/tools/hayabusa.exe",
+    )
+    monkeypatch.setattr(
+        "wazuhtestgen.internal.hayabusa.subprocess.run", fake_run,
+    )
+    records = run_hayabusa(evtx, "hayabusa")
+    assert len(records) == 1
+    assert "--disable-abbreviations" in executed
+    assert executed[executed.index("--profile") + 1] == "verbose"
+    assert executed[executed.index("--output-type") + 1] == "jsonl"
+
+
+def test_attack_mapper_accepts_hayabusa_display_delimiters() -> None:
+    assert map_attack_tags("T1110.001 ¦ attack.t1059.001") == (
+        "T1059.001", "T1110.001"
+    )
