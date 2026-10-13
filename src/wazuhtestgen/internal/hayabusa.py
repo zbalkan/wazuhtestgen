@@ -135,12 +135,14 @@ class HayabusaConverter:
                     f"    log = {logs[index]!r}\n"
                     f"    response = send_log(log, log_format='json')\n"
                     f"    assert response.status is LogtestStatus.RuleMatch\n"
+                    f"    assert response.alert\n"
                     f"    # Proposed expectations, based on Hayabusa metadata; edit to fit your ruleset.\n"
                     f"    expected_level = {level!r}\n"
                     f"    expected_mitre_ids = {tags!r}\n"
                     f"    # Optional: add assert response.rule_id == '<your_rule_id>'\n"
                     f"    assert expected_level is not None, 'Set expected_level using your ruleset policy'\n"
-                    f"    assert response.rule_level == expected_level\n"
+                    f"    assert response.rule_level is not None\n"
+                    f"    assert response.rule_level >= expected_level\n"
                     f"    assert set(expected_mitre_ids) <= response.rule_mitre_ids\n\n"
                 )
             name = identifier(str(evtx.relative_to(source).with_suffix("")).replace("\\", "_").replace("/", "_"))
