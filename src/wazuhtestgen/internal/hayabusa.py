@@ -128,7 +128,6 @@ class HayabusaConverter:
                 function = identifier(f"{evtx.stem}_{number}_{rule_uuid}", fallback="detection")
                 # Hayabusa does not establish a Wazuh rule ID. Assert only reviewable metadata.
                 cases.append(
-                    f"@pytest.mark.skip(reason='Review Hayabusa-derived level, ATT&CK, and Wazuh rule mapping')\n"
                     f"def test_{function}() -> None:\n"
                     f"    # Sigma/Hayabusa: {rule_uuid}\n"
                     f"    # Title: {title.encode('unicode_escape').decode('ascii')}\n"
@@ -136,9 +135,11 @@ class HayabusaConverter:
                     f"    log = {logs[index]!r}\n"
                     f"    response = send_log(log, log_format='json')\n"
                     f"    assert response.status is LogtestStatus.RuleMatch\n"
-                    f"    expected_level = {level!r}  # Advisory policy; review first\n"
+                    f"    # Proposed expectations, based on Hayabusa metadata; edit to fit your ruleset.\n"
+                    f"    expected_level = {level!r}\n"
                     f"    expected_mitre_ids = {tags!r}\n"
-                    f"    assert expected_level is not None\n"
+                    f"    # Optional: add assert response.rule_id == '<your_rule_id>'\n"
+                    f"    assert expected_level is not None, 'Set expected_level using your ruleset policy'\n"
                     f"    assert response.rule_level == expected_level\n"
                     f"    assert set(expected_mitre_ids) <= response.rule_mitre_ids\n\n"
                 )
@@ -147,6 +148,8 @@ class HayabusaConverter:
             if destination.exists():
                 raise ValueError(f"Refusing to overwrite existing test module: {destination}")
             destination.write_text(
+                "# Best-effort TDD drafts: initial assertion failures are expected (Red).\n"
+                "# Review expected levels, MITRE IDs, and optional rule ID before Green.\n"
                 "import pytest\nfrom wazuhtester import LogtestStatus, send_log\n"
                 "pytestmark = pytest.mark.wazuh_logtest\n\n" + "".join(cases),
                 encoding="utf-8",
