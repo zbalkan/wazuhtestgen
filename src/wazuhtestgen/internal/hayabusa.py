@@ -117,6 +117,8 @@ class HayabusaConverter:
             matched, unresolved = correlate(logs, findings)
             if unresolved:
                 raise ValueError(f"{evtx}: {unresolved} Hayabusa findings cannot be uniquely correlated")
+            # One parametrized test per EVTX file. Each Hayabusa finding remains
+            # an independently reported pytest case, even for shared records.
             cases: list[str] = []
             for number, (index, hit) in enumerate(matched):
                 rule_uuid = str(hit.get("RuleID", "")).strip()
@@ -126,26 +128,41 @@ class HayabusaConverter:
                 level = DEFAULT_LEVELS.get(severity)
                 tags = map_attack_tags(hit.get("MitreTags"))
                 title = str(hit.get("RuleTitle", "Detection"))
-                function = identifier(f"{evtx.stem}_{number}_{rule_uuid}", fallback="detection")
-                # Hayabusa does not establish a Wazuh rule ID. Assert only reviewable metadata.
-                cases.append(
-                    f"def test_{function}() -> None:\n"
-                    f"    # Sigma/Hayabusa: {rule_uuid}\n"
-                    f"    # Title: {title.encode('unicode_escape').decode('ascii')}\n"
-                    f"    # Source: {str(evtx.relative_to(source))!r}, record {hit.get('RecordID')!r}\n"
-                    f"    log = {logs[index]!r}\n"
-                    f"    response = send_log(log, log_format='json')\n"
-                    f"    assert response.status is LogtestStatus.RuleMatch\n"
-                    f"    assert response.alert\n"
-                    f"    # Proposed expectations, based on Hayabusa metadata; edit to fit your ruleset.\n"
-                    f"    expected_level = {level!r}\n"
-                    f"    expected_mitre_ids = {tags!r}\n"
-                    f"    # Optional: add assert response.rule_id == '<your_rule_id>'\n"
-                    f"    assert expected_level is not None, 'Set expected_level using your ruleset policy'\n"
-                    f"    assert response.rule_level is not None\n"
-                    f"    assert response.rule_level >= expected_level\n"
-                    f"    assert set(expected_mitre_ids) <= response.rule_mitre_ids\n\n"
+                record_id = str(hit.get("RecordID", "unknown"))
+                case_id = identifier(
+                    f"record_{record_id}_sigma_{rule_uuid}_{number}",
+                    fallback="case",
                 )
+                cases.append(
+                    f"    # Sigma: {rule_uuid}; title: {title.encode('unicode_escape').decode('ascii')}\n"
+                    f"    pytest.param(\n"
+                    f"        {logs[index]!r},\n"
+                    f"        {level!r},\n"
+                    f"        {tags!r},\n"
+                    f"        id={case_id!r},\n"
+                    f"    ),\n"
+                )
+
+            test_code = ""
+            if cases:
+                test_code = (
+                    "@pytest.mark.parametrize(\n"
+                    "    ('log', 'expected_level', 'expected_mitre_ids'),\n"
+                    "    [\n" + "".join(cases) + "    ],\n"
+                    ")\n"
+                    "def test_hayabusa_detection(log, expected_level, expected_mitre_ids) -> None:\n"
+                    "    # Proposed expectations: edit to fit your installed Wazuh ruleset.\n"
+                    "    # Optional: assert response.rule_id == '<your_rule_id>'\n"
+                    "    assert expected_level is not None, 'Set minimum level using your ruleset policy'\n"
+                    "    response = send_log(log, log_format='json')\n"
+                    "    assert response.status is LogtestStatus.RuleMatch\n"
+                    "    assert response.alert\n"
+                    "    assert response.rule_level is not None\n"
+                    "    assert response.rule_level >= expected_level\n"
+                    "    assert set(expected_mitre_ids) <= response.rule_mitre_ids\n\n"
+                )
+            else:
+                test_code = "# No correlated Hayabusa detections; no test cases generated.\n"
             name = identifier(str(evtx.relative_to(source).with_suffix("")).replace("\\", "_").replace("/", "_"))
             destination = target / f"test_hayabusa_{name}.py"
             if destination.exists():
@@ -154,6 +171,6 @@ class HayabusaConverter:
                 "# Best-effort TDD drafts: initial assertion failures are expected (Red).\n"
                 "# Review expected levels, MITRE IDs, and optional rule ID before Green.\n"
                 "import pytest\nfrom wazuhtester import LogtestStatus, send_log\n"
-                "pytestmark = pytest.mark.wazuh_logtest\n\n" + "".join(cases),
+                "pytestmark = pytest.mark.wazuh_logtest\n\n" + test_code,
                 encoding="utf-8",
             )
