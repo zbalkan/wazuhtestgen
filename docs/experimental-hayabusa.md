@@ -1,6 +1,6 @@
 # Experimental Hayabusa-assisted EVTX rule generation
 
-Status: experimental design; no runtime implementation yet.
+Status: experimental proof of concept; implementation is incomplete and not end-to-end validated.
 
 ## Purpose
 
@@ -57,17 +57,17 @@ output/
   event-manifest.jsonl        # EVTX provenance, stable event keys
   hayabusa-correlations.jsonl # event-to-detection associations and unresolved rows
   suggestions.json            # atomic/temporal/metadata candidate assessments
-  test_*.py                   # editable pytest tests, skipped until reviewed
+  test_*.py                   # editable pytest tests, runnable and expected to fail initially
 ```
 
-Never bake suggestions into live Wazuh rules or silently unskip tests. Prefer compact manifest or external fixture files over embedded enormous JSON lists when input sizes warrant it.
+Generated tests are runnable immediately as Red-phase TDD scaffolding. Failure is expected until the user's ruleset implements the proposed detection. Do not use `pytest.mark.skip` or `pytest.mark.xfail` to hide unmet expectations. Distinguish assertion failures from test infrastructure errors. Expected severity and ATT&CK IDs are best-effort, editable proposals, not guarantees. Never modify live Wazuh rules automatically. Prefer compact manifest or external fixture files over embedded enormous JSON lists when input sizes warrant it.
 
 ## Acceptance tests
 
 - Two EVTX files with identical RecordID but different paths/channels/computers remain distinct.
 - Multiple Hayabusa rule UUIDs matching one EVTX record are preserved.
 - Hayabusa rows without an exact unambiguous source/event key are reported as unresolved.
-- A Hayabusa finding cannot manufacture a Wazuh assertion or turn a skipped template into a passing test.
+- A Hayabusa finding generates provisional, runnable assertions; tests may fail until the installed Wazuh ruleset implements the intended detection.
 - Metadata fields retain raw values, and ATT&CK/severity discrepancies are advisory.
 - Paths containing spaces work; no shell interpolation; missing executable returns a clear error.
 - Existing INI/rule/EVTX generation remains unchanged when Hayabusa is disabled.
@@ -80,5 +80,5 @@ Never bake suggestions into live Wazuh rules or silently unskip tests. Prefer co
 1. Capture golden output fixtures for current Hayabusa (>=4.0) and wazuhevtx.
 2. Implement input adapters + strict join and diagnostic counters; test completely offline.
 3. Add opt-in Hayabusa subprocess runner + timeline import.
-4. Generate evidence-ranked atomic candidates, advisory metadata comparisons, and skipped tests.
+4. Generate evidence-ranked atomic candidates, advisory metadata comparisons, and runnable Red-phase pytest templates.
 5. Experiment with temporal candidate mining only after an explicit sequence model and Wazuh logtest oracle are available.
