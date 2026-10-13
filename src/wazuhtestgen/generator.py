@@ -10,6 +10,7 @@ import sys
 from typing import Final
 
 from .internal.evtx import EvtxConverter
+from .internal.hayabusa import HayabusaConverter
 from .internal.ini import IniConverter
 from .internal.rule import RuleConverter
 
@@ -30,6 +31,7 @@ def _build_parser() -> argparse.ArgumentParser:
     for command, help_text in (
         ("ini", "Generate pytest tests from Wazuh INI regression tests."),
         ("evtx", "Generate editable pytest templates from EVTX files."),
+        ("hayabusa", "Generate Hayabusa-informed EVTX pytest drafts (experimental)."),
         ("rule", "Generate editable pytest templates from Wazuh rule XML files."),
     ):
         subparser = subparsers.add_parser(command, help=help_text)
@@ -47,9 +49,9 @@ def _build_parser() -> argparse.ArgumentParser:
 def _parse_args() -> argparse.Namespace:
     parser = _build_parser()
     args = parser.parse_args()
-    if args.command == "evtx" and platform.system() != "Windows":
+    if args.command in ("evtx", "hayabusa") and platform.system() != "Windows":
         parser.error(
-            "the evtx command requires Windows, because wazuhevtx reads EVTX "
+            "the evtx and hayabusa commands require Windows, because wazuhevtx reads EVTX "
             "files through the Windows event log API. The ini and rule commands "
             "run on any operating system."
         )
@@ -91,6 +93,8 @@ def main(args: argparse.Namespace | None = None) -> None:
             )
     elif args.command == "evtx":
         EvtxConverter().convert(input_directory, output_directory)
+    elif args.command == "hayabusa":
+        HayabusaConverter(EvtxConverter().converter).convert(input_directory, output_directory)
     elif args.command == "rule":
         RuleConverter().convert(input_directory, output_directory)
 
