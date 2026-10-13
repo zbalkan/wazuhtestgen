@@ -62,12 +62,20 @@ output/
 
 The assertion contract is: event X produces an alert with level >= proposed minimum Y and contains ATT&CK technique/subtechnique Z. A matched rule without an emitted alert is insufficient. Higher alert levels satisfy the expectation. Generated tests are runnable immediately as Red-phase TDD scaffolding. Failure is expected until the user's ruleset implements the proposed detection. Do not use `pytest.mark.skip` or `pytest.mark.xfail` to hide unmet expectations. Distinguish assertion failures from test infrastructure errors. Expected severity and ATT&CK IDs are best-effort, editable proposals, not guarantees. Never modify live Wazuh rules automatically. Prefer compact manifest or external fixture files over embedded enormous JSON lists when input sizes warrant it.
 
+
+## Generated pytest structure
+
+For each EVTX file, generate one `test_hayabusa_detection` function parametrized by the Wazuh JSON log, proposed minimum Wazuh level, and expected MITRE technique IDs. Emit one `pytest.param(..., id=...)` per correlated Hayabusa finding, using the original event record number and Sigma UUID in the case identifier. Multiple Sigma findings from the same event remain independently reported cases. All cases execute normally; pytest should report genuine assertion failures during the Red phase.
+
+Do not create an empty parametrized test when no Hayabusa findings correlate; emit a comment-only module instead. Individual atomic cases are independent and may be safely parametrized. Temporal correlations are **ordered event sequences with shared state**: when implemented, one parameter must contain the complete sequence and its expected terminal alert. Do not split the events of a temporal test into separate parametrized cases or assume independent logtest sessions retain correlation state.
+
 ## Acceptance tests
 
 - Two EVTX files with identical RecordID but different paths/channels/computers remain distinct.
 - Multiple Hayabusa rule UUIDs matching one EVTX record are preserved.
 - Hayabusa rows without an exact unambiguous source/event key are reported as unresolved.
 - A Hayabusa finding generates provisional, runnable assertions; tests may fail until the installed Wazuh ruleset implements the intended detection.
+- Multiple Hayabusa findings produce independent named pytest parameters in one test function per EVTX, and no findings produce no collected test cases.
 - Metadata fields retain raw values, and ATT&CK/severity discrepancies are advisory.
 - Paths containing spaces work; no shell interpolation; missing executable returns a clear error.
 - Existing INI/rule/EVTX generation remains unchanged when Hayabusa is disabled.
