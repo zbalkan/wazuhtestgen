@@ -35,9 +35,15 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# Opt-in experimental mode. Zircolite 4.5+ requires Python >=3.11; on
-# Python 3.9/3.10 this extra deliberately fails dependency resolution.
-zircolite = ["Zircolite>=4.5,<5", "wazuhtester>=0.1,<1", "pytest>=8,<10"]
+# Opt-in experimental mode. Zircolite requires Python >=3.11.
+# Zircolite's 4.5.0 Python distribution is installed from its pinned source
+# revision; the project is not currently available as a 4.5.x PyPI wheel.
+# Direct VCS references are for the experiment, not a publishable PyPI release.
+zircolite = [
+  "Zircolite @ git+https://github.com/wagga40/Zircolite.git@2557ed1672e9f0281fcb2937bf38dd49cbc52d8e",
+  "wazuhtester>=0.1,<1",
+  "pytest>=8,<10",
+]
 test = ["pytest>=8,<10"]
 build = ["build>=1.2", "twine>=5"]
 dev = ["pytest>=8,<10", "build>=1.2", "twine>=5"]
