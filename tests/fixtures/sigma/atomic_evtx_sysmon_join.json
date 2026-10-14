@@ -1,0 +1,17 @@
+[
+  {
+    "title": "Atomic-EVTX Sysmon process-creation join probe",
+    "id": "de0a1295-f6cf-4ea4-9d90-e6c6fbcc0d51",
+    "status": "test",
+    "description": "Integration-only EventID=1 probe. ATT&CK ID is a scenario label, not evidence of a specific Sigma detection.",
+    "author": "wazuhtestgen integration suite",
+    "tags": [
+      "attack.t1059.003"
+    ],
+    "level": "medium",
+    "rule": [
+      "SELECT * FROM logs WHERE EventID = 1 LIMIT 1"
+    ],
+    "filename": "atomic_evtx_sysmon_join_probe.yml"
+  }
+]
