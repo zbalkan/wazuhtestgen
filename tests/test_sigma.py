@@ -1,4 +1,4 @@
-"""Offline tests for Zircolite's structured atomic detection adapter."""
+"""Offline tests for experimental Sigma atomic EVTX generation."""
 from __future__ import annotations
 
 import ast
@@ -203,3 +203,20 @@ def test_missing_zircolite_assets_fail_instead_of_silent_zero_matches(
             ruleset=str(tmp_path / "missing.json"),
             config=str(tmp_path / "missing.yaml"),
         )
+
+
+def test_sigma_is_public_cli_category() -> None:
+    from wazuhtestgen.generator import _build_parser
+
+    parser = _build_parser()
+    args = parser.parse_args([
+        "sigma", "--input_dir", "input", "--output_dir", "output",
+        "--ruleset", "rules.json", "--mapping-config", "config.yaml",
+    ])
+    assert args.command == "sigma"
+    assert args.ruleset == "rules.json"
+    assert args.mapping_config == "config.yaml"
+    with pytest.raises(SystemExit):
+        parser.parse_args([
+            "zircolite", "--input_dir", "input", "--output_dir", "output",
+        ])
