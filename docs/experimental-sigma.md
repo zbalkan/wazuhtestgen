@@ -154,6 +154,42 @@ files as though they were all CC0. Treat folder ATT&CK technique names
 as informal scenario annotations, not as ground truth for expected
 atomic rule matches.
 
+### Extended Atomic-EVTX corpus
+
+The Windows integration job additionally checks samples from
+[arniki/atomic-evtx](https://github.com/arniki/atomic-evtx) at revision
+`8de5fa8f158b4d72d1e3c6f07053162c90ee6238`. Its README documents
+1,064 simulated Atomic Red Team scenarios and Windows 10 EVTX recordings
+covering Sysmon, Application, System, Security, and Windows PowerShell.
+The `benign_activity_logs/` directory provides independent benign recordings.
+
+Initial pinned samples (downloaded in CI, hash-verified by Git blob SHA):
+
+| Type | Source path | Git blob SHA |
+| --- | --- | --- |
+| Attack-simulation | `ttp_evtx/T1059.003-1/T1059.003-1_Microsoft-Windows-Sysmon_Operational.evtx` | `43db42f98cccf6d387078b710990554a242b5a3b` |
+| Benign | `benign_activity_logs/powershell_820.evtx` | `a58139976d030f2c64d0bd2e1c6dbd540c883964` |
+
+The T1059.003-1 execution transcript reports an exit code of 0, but that is
+not a positive Sigma rule witness by itself. The integration probe deliberately
+matches Sysmon Event ID 1 only to exercise record identity propagation. The
+benign probe selects one event to confirm that the parser and event join work
+without adding an ATT&CK label. These fixtures do **not** establish security
+detection true-positive or false-positive rates.
+
+The repository has no root `LICENSE` file and no GitHub SPDX license
+declaration at the pinned revision. The experimental suite references and
+downloads its public files from upstream during CI rather than redistributing
+them; obtain permission or appropriate licensing before vendoring this corpus.
+Its three attack directories retain **raw EVTX files** while filtering
+their corresponding JSON exports differently. The filtering does not alter
+the raw EVTX input to `wazuhtestgen sigma`.
+
+Future negative-detection tests should use a reviewed individual Sigma
+predicate and assert that an unwanted *specific detection* did not fire on
+benign events. Do not require that every benign Windows event generate no Wazuh
+alert at all, because informative or unrelated rules can legitimately match.
+
 Correlations, temporal events, and multi-event ATT&CK scenarios remain
 outside the scope of these atomic acceptance tests.
 
