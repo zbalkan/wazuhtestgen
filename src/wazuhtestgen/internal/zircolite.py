@@ -70,7 +70,8 @@ def matched_event_identity(event: dict[str, Any]) -> tuple[str, str, str, str] |
 
 
 def run_zircolite(evtx: pathlib.Path,
-                  ruleset: str | None = None) -> list[dict[str, Any]]:
+                  ruleset: str | None = None,
+                  config: str | None = None) -> list[dict[str, Any]]:
     if sys.version_info < (3, 11):
         raise RuntimeError(
             "The experimental Zircolite mode requires Python >=3.11. "
@@ -81,12 +82,24 @@ def run_zircolite(evtx: pathlib.Path,
             "The optional Zircolite package is not installed. "
             "Install wazuhtestgen[zircolite] with Python >=3.11."
         )
+    if not ruleset or not config:
+        raise RuntimeError(
+            "The experimental Zircolite mode requires --ruleset and "
+            "--zircolite-config. Install the Zircolite source assets separately "
+            "and supply their actual file paths."
+        )
+    if not pathlib.Path(ruleset).exists():
+        raise FileNotFoundError("Zircolite ruleset not found: " + ruleset)
+    if not pathlib.Path(config).is_file():
+        raise FileNotFoundError("Zircolite field-mapping config not found: " + config)
     with tempfile.TemporaryDirectory(prefix="wazuhtestgen-zircolite-") as temp:
         output = pathlib.Path(temp) / "detections.json"
-        command = [sys.executable, "-m", "zircolite", "--events", str(evtx),
-                   "--outfile", str(output), "--quiet", "--no-parallel"]
-        if ruleset:
-            command.extend(["--ruleset", ruleset])
+        command = [
+            sys.executable, "-m", "zircolite", "--events", str(evtx),
+            "--outfile", str(output), "--quiet", "--no-parallel",
+            "--ruleset", str(pathlib.Path(ruleset).resolve()),
+            "--config", str(pathlib.Path(config).resolve()),
+        ]
         result = subprocess.run(
             command, capture_output=True, text=True,
             check=False, timeout=900,
@@ -155,9 +168,11 @@ class ZircoliteConverter:
     """Generate runnable best-effort, atomic pytest cases from EVTX and Sigma."""
 
     def __init__(self, evtx_converter: Any,
-                 ruleset: str | None = None) -> None:
+                 ruleset: str | None = None,
+                 config: str | None = None) -> None:
         self.evtx_converter = evtx_converter
         self.ruleset = ruleset
+        self.config = config
 
     def convert(self, input_directory: str, output_directory: str) -> None:
         source = pathlib.Path(input_directory)
@@ -168,7 +183,7 @@ class ZircoliteConverter:
             if not evtx.is_file() or evtx.suffix.lower() != ".evtx":
                 continue
             logs = list(self.evtx_converter.to_json(evtx))
-            detections = run_zircolite(evtx, self.ruleset)
+            detections = run_zircolite(evtx, self.ruleset, self.config)
             matches, counts = correlate(logs, detections, evtx)
             if any(counts.values()):
                 logging.warning("%s: skipped/ignored Zircolite results: %s",
