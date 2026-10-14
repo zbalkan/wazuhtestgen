@@ -35,11 +35,11 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# Opt-in experimental mode. Zircolite requires Python >=3.11.
+# Opt-in experimental Sigma mode; initial provider Zircolite requires Python >=3.11.
 # Zircolite's 4.5.0 Python distribution is installed from its pinned source
 # revision; the project is not currently available as a 4.5.x PyPI wheel.
 # Direct VCS references are for the experiment, not a publishable PyPI release.
-zircolite = [
+sigma = [
   "Zircolite @ git+https://github.com/wagga40/Zircolite.git@2557ed1672e9f0281fcb2937bf38dd49cbc52d8e",
   "wazuhtester>=0.1,<1",
   "pytest>=8,<10",
