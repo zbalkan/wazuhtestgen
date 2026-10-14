@@ -14,28 +14,40 @@ expected technique.
 Tests are Red-phase, best-effort templates. The installed Wazuh ruleset
 determines the final outcome. No Wazuh rule IDs are assumed.
 
-## Runtime
+## Runtime and opt-in dependency restrictions
 
-Requires Windows for wazuhevtx. The optional `zircolite` extra installs
-upstream Zircolite 4.5+ together with pytest and wazuhtester. This extra
-requires Python >=3.11 by upstream package metadata and deliberately cannot
-resolve on Python 3.9 or 3.10. The base wazuhtestgen package retains Python
->=3.9 support. The integration executes `sys.executable -m zircolite` in a
-subprocess, so no standalone Zircolite executable or PATH lookup is needed.
-This separates the application-level state of Zircolite from the generator
-and avoids private API stability dependencies.
+The standard wazuhtestgen package retains Python >=3.9. The experimental
+`[zircolite]` extra opts into Python >=3.11, upstream Zircolite's native
+build/dependency requirements, pytest, and wazuhtester. This branch pins
+Zircolite's source revision
+`2557ed1672e9f0281fcb2937bf38dd49cbc52d8e` because a Zircolite 4.5.x
+distribution is not currently available on PyPI. Direct VCS dependencies
+are an **experimental source-install mechanism**; they cannot be shipped
+unchanged in a future PyPI release of wazuhtestgen.
 
-Example:
+The Python package install does **not** reliably include Zircolite's
+separate `config/` and `rules/` assets. Use an upstream Zircolite source
+checkout for those files. Both are required to avoid silently running with
+incorrect field mappings or without a ruleset.
 
-```console
-wazuhtestgen zircolite --input_dir C:\\EVTX --output_dir tests \
-  --zircolite-executable Zircolite.exe
+Example (Windows, Python 3.11+):
+
+```powershell
+python -m pip install -e ".[zircolite]"
+git clone https://github.com/wagga40/Zircolite.git C:\\tools\\Zircolite
+wazuhtestgen zircolite `
+  --input_dir C:\\EVTX `
+  --output_dir C:\\tests `
+  --ruleset C:\\tools\\Zircolite\\rules\\rules_windows_merged.json `
+  --zircolite-config C:\\tools\\Zircolite\\config\\config.yaml
 ```
 
-An explicit ruleset can be supplied with `--ruleset`. The adapter invokes
-`python -m zircolite --events <one EVTX file> --outfile <temporary JSON> --quiet --no-parallel`.
-It uses a deterministic per-file context and does not depend on a shared
-external SQLite database.
+For reproducible results, use source assets from the same revision as the
+pinned Zircolite library rather than a floating `master` checkout.
+The Python module is invoked using
+`sys.executable -m zircolite --events ... --ruleset ... --config ...`.
+No standalone executable is needed. The subprocess isolates Zircolite's
+state without coupling to its private processing APIs.
 
 ## Input format
 
