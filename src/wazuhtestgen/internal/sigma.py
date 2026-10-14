@@ -100,14 +100,19 @@ def run_zircolite(evtx: pathlib.Path,
             "--ruleset", str(pathlib.Path(ruleset).resolve()),
             "--config", str(pathlib.Path(config).resolve()),
         ]
+        # Capture raw bytes. Zircolite's Windows console output can contain
+        # bytes that are invalid in the runner's locale (for example cp1252).
+        # text=True creates reader threads which can crash while decoding and
+        # conceal the actual subprocess error or output.
         result = subprocess.run(
-            command, capture_output=True, text=True,
+            command, capture_output=True,
             check=False, timeout=900,
         )
         if result.returncode != 0:
-            raise RuntimeError(
-                "Zircolite failed: " + (result.stderr or result.stdout)[-1500:]
+            diagnostics = (result.stderr or result.stdout).decode(
+                "utf-8", errors="replace"
             )
+            raise RuntimeError("Zircolite failed: " + diagnostics[-1500:])
         if not output.is_file():
             raise RuntimeError("Zircolite did not create its detection JSON")
         data = json.loads(output.read_text(encoding="utf-8-sig"))
