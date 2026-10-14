@@ -55,7 +55,7 @@ def test_real_evtx_generates_atomic_sigma_cases(tmp_path: pathlib.Path) -> None:
     outputs = tmp_path / "output"
     inputs.mkdir()
     (inputs / "Security.evtx").write_bytes(content)
-    ruleset = pathlib.Path(__file__).resolve().parents[1] / (
+    ruleset = pathlib.Path(__file__).resolve().parent / (
         "fixtures/sigma/security_4625_join.json"
     )
     SigmaConverter(
