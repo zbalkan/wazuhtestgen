@@ -45,8 +45,8 @@ jobs:
       - run: python -c "import zircolite, wazuhevtx; print(zircolite.__version__)"
       - run: python -m pytest tests/test_sigma.py -v
       - run: wazuhtestgen sigma --help
-      # Real Windows EVTX regression: fetch CC0 fixture by pinned commit and
-      # verify its Git blob SHA in test code. No binary corpora are vendored.
+      # Real Windows EVTX regression: pin and hash-verify CC0 and Atomic-EVTX
+      # attack/benign fixtures. No external EVTX binaries are vendored.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         if: github.ref_name == 'experimental/sigma-real-evtx-ci'
         with:
@@ -56,7 +56,7 @@ jobs:
           persist-credentials: false
       - name: Real EVTX to Sigma atomic join
         if: github.ref_name == 'experimental/sigma-real-evtx-ci'
-        run: python -m pytest tests/test_sigma_real_evtx.py -v
+        run: python -m pytest tests/test_sigma_real_evtx.py tests/test_sigma_atomic_evtx_corpus.py -v
         env:
           SIGMA_REAL_EVTX: "1"
           SIGMA_ZIRCOLITE_CONFIG: ${{ github.workspace }}/.zircolite-upstream/config/config.yaml
