@@ -14,7 +14,7 @@ EVTX and rule XML are different. They provide source material but do not contain
 
 ## Requirements
 
-`wazuhtestgen` requires Python 3.9 or newer. EVTX conversion additionally requires Windows; the `wazuhevtx` dependency is installed automatically on Windows. The experimental `sigma` command requires the optional `sigma` extra, which pins an upstream Zircolite Git revision alongside pytest and `wazuhtester`. Zircolite requires Python 3.11+; the regular installation remains compatible with Python 3.9+. The extra is for source-based experiments, not yet suitable for PyPI publishing. Upstream Sysmon and Windows pySigma pipelines still specify pySigma <2, conflicting with Zircolite's >=2 requirement. For this opt-in mode, use uv with `requirements/sigma-overrides.txt` rather than pip's resolver.
+`wazuhtestgen` requires Python 3.9 or newer. EVTX conversion additionally requires Windows; the `wazuhevtx` dependency is installed automatically on Windows. The experimental `sigma` command requires the optional `sigma` extra, which pins an upstream Zircolite Git revision alongside pytest. `wazuhtester` is included only on Linux, because its logtest client needs the local Wazuh Unix socket. Zircolite requires Python 3.11+; the regular installation remains compatible with Python 3.9+. The extra is for source-based experiments, not yet suitable for PyPI publishing. Upstream Sysmon and Windows pySigma pipelines still specify pySigma <2, conflicting with Zircolite's >=2 requirement. For this opt-in mode, use uv with `requirements/sigma-overrides.txt` rather than pip's resolver.
 
 ## Generated test dependencies
 
@@ -77,7 +77,7 @@ wazuhtestgen sigma --input_dir INPUT_DIR --output_dir OUTPUT_DIR \
   --ruleset PATH_TO_RULESET --mapping-config PATH_TO_MAPPING_CONFIG
 ```
 
-Run this in an active Python 3.11+ virtual environment from the repository checkout. The override intentionally replaces the conflicting pipeline constraints, matching Zircolite's own supported development environment. It is not a normal pip constraints file; `pip install -e ".[sigma]"` still fails until upstream pipeline requirements are corrected. See [experimental Sigma design](docs/experimental-sigma.md) for the required Zircolite ruleset and field-mapping assets, Sigma metadata mapping, and atomic-only scope.
+Run this in an active Python 3.11+ virtual environment from the repository checkout. EVTX/Sigma templates are generated on Windows using `wazuhevtx` and Zircolite, while the resulting pytest tests must be executed separately on Linux with `wazuhtester` and access to a Wazuh manager. The override intentionally replaces the conflicting pipeline constraints, matching Zircolite's own supported development environment. It is not a normal pip constraints file; `pip install -e ".[sigma]"` still fails until upstream pipeline requirements are corrected. See [experimental Sigma design](docs/experimental-sigma.md) for the required Zircolite ruleset and field-mapping assets, Sigma metadata mapping, and atomic-only scope.
 
 Wazuh rules:
 
