@@ -164,11 +164,16 @@ def test_subprocess_runner_reads_zircolite_result_array(
     monkeypatch.setattr(
         "wazuhtestgen.internal.zircolite.subprocess.run", fake_run,
     )
-    assert len(run_zircolite(evtx, ruleset="rules.json")) == 1
+    ruleset = tmp_path / "rules.json"
+    mapping = tmp_path / "config.yaml"
+    ruleset.write_text("[]", encoding="utf-8")
+    mapping.write_text("{}", encoding="utf-8")
+    assert len(run_zircolite(evtx, ruleset=str(ruleset), config=str(mapping))) == 1
     assert commands[0][:3] == [sys.executable, "-m", "zircolite"]
     assert "--events" in commands[0]
     assert "--ruleset" in commands[0]
-    assert commands[0][-1] == "rules.json"
+    assert commands[0][commands[0].index("--ruleset") + 1] == str(ruleset)
+    assert commands[0][commands[0].index("--config") + 1] == str(mapping)
 
 
 def test_missing_optional_dependency_is_actionable(monkeypatch, tmp_path) -> None:
@@ -178,3 +183,23 @@ def test_missing_optional_dependency_is_actionable(monkeypatch, tmp_path) -> Non
     )
     with pytest.raises(RuntimeError, match=r"Python >=3.11|wazuhtestgen\[zircolite\]"):
         run_zircolite(tmp_path / "no.evtx")
+
+
+def test_missing_zircolite_assets_fail_instead_of_silent_zero_matches(
+    monkeypatch, tmp_path,
+) -> None:
+    if sys.version_info < (3, 11):
+        pytest.skip("Optional Zircolite mode requires Python 3.11+")
+
+    monkeypatch.setattr(
+        "wazuhtestgen.internal.zircolite.importlib.util.find_spec",
+        lambda _: object(),
+    )
+    with pytest.raises(RuntimeError, match="requires --ruleset and --zircolite-config"):
+        run_zircolite(tmp_path / "Security.evtx")
+    with pytest.raises(FileNotFoundError, match="ruleset not found"):
+        run_zircolite(
+            tmp_path / "Security.evtx",
+            ruleset=str(tmp_path / "missing.json"),
+            config=str(tmp_path / "missing.yaml"),
+        )
