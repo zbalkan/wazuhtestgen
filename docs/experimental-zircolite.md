@@ -16,11 +16,14 @@ determines the final outcome. No Wazuh rule IDs are assumed.
 
 ## Runtime
 
-Requires Windows for wazuhevtx; requires a separately installed Zircolite
-standalone executable or launch wrapper in PATH. Source-installed Zircolite
-4.5.0 needs Python >=3.11, while wazuhtestgen must continue supporting
-Python >=3.9. Therefore Zircolite is invoked as an external process, not
-installed as a mandatory Python dependency.
+Requires Windows for wazuhevtx. The optional `zircolite` extra installs
+upstream Zircolite 4.5+ together with pytest and wazuhtester. This extra
+requires Python >=3.11 by upstream package metadata and deliberately cannot
+resolve on Python 3.9 or 3.10. The base wazuhtestgen package retains Python
+>=3.9 support. The integration executes `sys.executable -m zircolite` in a
+subprocess, so no standalone Zircolite executable or PATH lookup is needed.
+This separates the application-level state of Zircolite from the generator
+and avoids private API stability dependencies.
 
 Example:
 
@@ -29,8 +32,8 @@ wazuhtestgen zircolite --input_dir C:\\EVTX --output_dir tests \
   --zircolite-executable Zircolite.exe
 ```
 
-An explicit ruleset can be supplied with `--ruleset`. The adapter sends
-`--events <one EVTX file> --outfile <temporary JSON> --quiet --no-parallel`.
+An explicit ruleset can be supplied with `--ruleset`. The adapter invokes
+`python -m zircolite --events <one EVTX file> --outfile <temporary JSON> --quiet --no-parallel`.
 It uses a deterministic per-file context and does not depend on a shared
 external SQLite database.
 
@@ -69,11 +72,12 @@ user-editable assertion, not a misleading Green result.
 
 ## Future Python library option
 
-Zircolite exports `ZircoliteCore`, `RulesetHandler`, `EvtxExtractor`,
-and reusable processing components. Importing those directly requires a
-Python >=3.11 environment and introduces the full Zircolite dependency
-graph. A versioned optional library provider could be introduced in a
-separate environment after the CLI-based output contract is validated.
+Zircolite exports `ZircoliteCore`, `RulesetHandler`, and reusable processing
+components. The user opts into their dependency graph with the `zircolite`
+extra, so direct imports are feasible. However, the public application entry
+point is more stable than wiring the full processing pipeline to internal
+classes. A direct in-process provider can be explored after verifying the
+executable-module output contract.
 
 ## Validation status
 
