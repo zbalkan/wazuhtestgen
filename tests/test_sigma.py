@@ -220,3 +220,16 @@ def test_sigma_is_public_cli_category() -> None:
         parser.parse_args([
             "zircolite", "--input_dir", "input", "--output_dir", "output",
         ])
+
+
+def test_experimental_sigma_package_policy() -> None:
+    root = Path(__file__).resolve().parents[1]
+    overrides = (root / "requirements" / "sigma-overrides.txt").read_text(
+        encoding="utf-8"
+    ).splitlines()
+    active = {line.strip() for line in overrides if line.strip() and not line.startswith("#")}
+    assert "pysigma>=2.0.0,<3" in active
+
+    project = (root / "pyproject.toml").read_text(encoding="utf-8")
+    assert 'sigma = [' in project
+    assert 'wazuhtester>=0.1,<1; platform_system == \'Linux\'' in project
