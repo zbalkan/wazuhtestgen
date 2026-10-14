@@ -45,10 +45,6 @@ def _build_parser() -> argparse.ArgumentParser:
         )
         if command == "zircolite":
             subparser.add_argument(
-                "--zircolite-executable", default="Zircolite",
-                help="Name or path of the Zircolite standalone executable.",
-            )
-            subparser.add_argument(
                 "--ruleset", default=None,
                 help="Optional explicit Zircolite JSON ruleset or Sigma YAML path.",
             )
@@ -105,7 +101,6 @@ def main(args: argparse.Namespace | None = None) -> None:
     elif args.command == "zircolite":
         ZircoliteConverter(
             EvtxConverter().converter,
-            executable=args.zircolite_executable,
             ruleset=args.ruleset,
         ).convert(input_directory, output_directory)
     elif args.command == "rule":
