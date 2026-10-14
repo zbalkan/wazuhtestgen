@@ -1,16 +1,18 @@
 """Zircolite-assisted atomic EVTX pytest drafts.
 
-Zircolite is an external executable because its Python >=3.11 requirement must
-not raise wazuhtestgen's Python >=3.9 support floor.
+The optional Zircolite >=4.5 package requires Python >=3.11. Run its module
+entry point in a separate process to isolate Zircolite's application-level
+state and avoid depending on private internal APIs.
 """
 from __future__ import annotations
 
+import importlib.util
 import json
 import logging
 import pathlib
 import re
-import shutil
 import subprocess
+import sys
 import tempfile
 from collections import defaultdict
 from typing import Any, Iterable
@@ -67,14 +69,21 @@ def matched_event_identity(event: dict[str, Any]) -> tuple[str, str, str, str] |
             str(fields[2]), str(fields[3]))
 
 
-def run_zircolite(evtx: pathlib.Path, executable: str = "Zircolite",
+def run_zircolite(evtx: pathlib.Path,
                   ruleset: str | None = None) -> list[dict[str, Any]]:
-    binary = shutil.which(executable)
-    if binary is None:
-        raise RuntimeError("Zircolite executable not found in PATH: " + executable)
+    if sys.version_info < (3, 11):
+        raise RuntimeError(
+            "The experimental Zircolite mode requires Python >=3.11. "
+            "Install wazuhtestgen[zircolite] in a Python 3.11+ environment."
+        )
+    if importlib.util.find_spec("zircolite") is None:
+        raise RuntimeError(
+            "The optional Zircolite package is not installed. "
+            "Install wazuhtestgen[zircolite] with Python >=3.11."
+        )
     with tempfile.TemporaryDirectory(prefix="wazuhtestgen-zircolite-") as temp:
         output = pathlib.Path(temp) / "detections.json"
-        command = [binary, "--events", str(evtx),
+        command = [sys.executable, "-m", "zircolite", "--events", str(evtx),
                    "--outfile", str(output), "--quiet", "--no-parallel"]
         if ruleset:
             command.extend(["--ruleset", ruleset])
@@ -145,10 +154,9 @@ def correlate(
 class ZircoliteConverter:
     """Generate runnable best-effort, atomic pytest cases from EVTX and Sigma."""
 
-    def __init__(self, evtx_converter: Any, executable: str = "Zircolite",
+    def __init__(self, evtx_converter: Any,
                  ruleset: str | None = None) -> None:
         self.evtx_converter = evtx_converter
-        self.executable = executable
         self.ruleset = ruleset
 
     def convert(self, input_directory: str, output_directory: str) -> None:
@@ -160,7 +168,7 @@ class ZircoliteConverter:
             if not evtx.is_file() or evtx.suffix.lower() != ".evtx":
                 continue
             logs = list(self.evtx_converter.to_json(evtx))
-            detections = run_zircolite(evtx, self.executable, self.ruleset)
+            detections = run_zircolite(evtx, self.ruleset)
             matches, counts = correlate(logs, detections, evtx)
             if any(counts.values()):
                 logging.warning("%s: skipped/ignored Zircolite results: %s",
