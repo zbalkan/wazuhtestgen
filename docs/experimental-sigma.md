@@ -121,6 +121,42 @@ point is more stable than wiring the full processing pipeline to internal
 classes. A direct in-process provider can be explored after verifying the
 executable-module output contract.
 
+
+## Real EVTX fixture provenance and validation
+
+The experimental Windows CI job can run a **real, offline-convertible EVTX
+join probe**. The source is
+[mdecrevoisier/EVTX-to-MITRE-Attack](https://github.com/mdecrevoisier/EVTX-to-MITRE-Attack)
+(CC0 1.0), revision `474856008f037ccd42753f02a631b42690195829`,
+file `TA0001-Initial access/T1078-Valid accounts/ID4625-failed login with denied access due to account restriction.evtx`
+(69,632 bytes), pinned Git blob
+`68b9ef68ed7d653472d06106712809843bf0b266`.
+The fixture is downloaded only in the opt-in Windows CI test; it is not
+redistributed in this repository. It is checked against the blob hash
+before processing.
+
+The companion compiled Zircolite JSON rule in
+`tests/fixtures/sigma/security_4625_join.json` is deliberately a generic
+EventID=4625 predicate. It proves the real EVTX-to-Wazuh JSON extraction,
+Zircolite event match, deterministic identity join, and generated pytest
+parameter path. It **does not** prove an ATT&CK technique occurred or
+validate a production Sigma YAML detection. Such detection-fidelity tests
+must use a reviewed predicate with a verified event witness.
+
+Other promising corpora for an extended non-gating suite include
+[sbousseaden/EVTX-ATTACK-SAMPLES](https://github.com/sbousseaden/EVTX-ATTACK-SAMPLES)
+(GPL-3.0) and
+[Yamato-Security/hayabusa-sample-evtx](https://github.com/Yamato-Security/hayabusa-sample-evtx)
+(mixed-origin collection with no confirmed repository-wide license).
+Yamato mirrors samples from the other two, so identify duplicates by
+Git blob SHA and preserve source provenance. Do not vendor mixed-license
+files as though they were all CC0. Treat folder ATT&CK technique names
+as informal scenario annotations, not as ground truth for expected
+atomic rule matches.
+
+Correlations, temporal events, and multi-event ATT&CK scenarios remain
+outside the scope of these atomic acceptance tests.
+
 ## Validation status
 
 Offline unit tests use mocked Sigma backend outputs and wazuhevtx records.
