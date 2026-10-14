@@ -42,5 +42,6 @@ jobs:
       - run: uv pip install --system -e ".[sigma]" --override requirements/sigma-overrides.txt
       - run: python -m zircolite --help
       - run: python -m zircolite --pipeline-list
-      - run: python -c "import zircolite, wazuhtester, wazuhevtx; print(zircolite.__version__)"
+      - run: python -c "import zircolite, wazuhevtx; print(zircolite.__version__)"
+      - run: python -m pytest tests/test_sigma.py -v
       - run: wazuhtestgen sigma --help
