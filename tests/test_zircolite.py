@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import ast
 import json
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -154,23 +155,26 @@ def test_subprocess_runner_reads_zircolite_result_array(
         out.write_text(json.dumps([detection(1)]), encoding="utf-8")
         return SimpleNamespace(returncode=0, stdout="", stderr="")
 
+    if sys.version_info < (3, 11):
+        pytest.skip("Zircolite optional dependency requires Python 3.11+")
     monkeypatch.setattr(
-        "wazuhtestgen.internal.zircolite.shutil.which",
-        lambda name: "C:/tools/Zircolite.exe",
+        "wazuhtestgen.internal.zircolite.importlib.util.find_spec",
+        lambda name: object() if name == "zircolite" else None,
     )
     monkeypatch.setattr(
         "wazuhtestgen.internal.zircolite.subprocess.run", fake_run,
     )
     assert len(run_zircolite(evtx, ruleset="rules.json")) == 1
+    assert commands[0][:3] == [sys.executable, "-m", "zircolite"]
     assert "--events" in commands[0]
     assert "--ruleset" in commands[0]
     assert commands[0][-1] == "rules.json"
 
 
-def test_missing_executable_reports_dependency(monkeypatch, tmp_path) -> None:
+def test_missing_optional_dependency_is_actionable(monkeypatch, tmp_path) -> None:
     monkeypatch.setattr(
-        "wazuhtestgen.internal.zircolite.shutil.which",
+        "wazuhtestgen.internal.zircolite.importlib.util.find_spec",
         lambda name: None,
     )
-    with pytest.raises(RuntimeError, match="not found in PATH"):
+    with pytest.raises(RuntimeError, match=r"Python >=3.11|wazuhtestgen\\[zircolite\\]"):
         run_zircolite(tmp_path / "no.evtx")
