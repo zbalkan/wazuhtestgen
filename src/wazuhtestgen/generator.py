@@ -45,8 +45,12 @@ def _build_parser() -> argparse.ArgumentParser:
         )
         if command == "zircolite":
             subparser.add_argument(
-                "--ruleset", default=None,
-                help="Optional explicit Zircolite JSON ruleset or Sigma YAML path.",
+                "--ruleset", required=True,
+                help="Zircolite JSON ruleset or Sigma YAML path.",
+            )
+            subparser.add_argument(
+                "--zircolite-config", required=True,
+                help="Zircolite field mappings config/config.yaml (from Zircolite source).",
             )
     return parser
 
@@ -102,6 +106,7 @@ def main(args: argparse.Namespace | None = None) -> None:
         ZircoliteConverter(
             EvtxConverter().converter,
             ruleset=args.ruleset,
+            config=args.zircolite_config,
         ).convert(input_directory, output_directory)
     elif args.command == "rule":
         RuleConverter().convert(input_directory, output_directory)
