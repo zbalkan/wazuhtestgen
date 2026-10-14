@@ -35,6 +35,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Opt-in experimental mode. Zircolite 4.5+ requires Python >=3.11; on
+# Python 3.9/3.10 this extra deliberately fails dependency resolution.
+zircolite = ["Zircolite>=4.5,<5", "wazuhtester>=0.1,<1", "pytest>=8,<10"]
 test = ["pytest>=8,<10"]
 build = ["build>=1.2", "twine>=5"]
 dev = ["pytest>=8,<10", "build>=1.2", "twine>=5"]
