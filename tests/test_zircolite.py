@@ -176,5 +176,5 @@ def test_missing_optional_dependency_is_actionable(monkeypatch, tmp_path) -> Non
         "wazuhtestgen.internal.zircolite.importlib.util.find_spec",
         lambda name: None,
     )
-    with pytest.raises(RuntimeError, match=r"Python >=3.11|wazuhtestgen\\[zircolite\\]"):
+    with pytest.raises(RuntimeError, match=r"Python >=3.11|wazuhtestgen\[zircolite\]"):
         run_zircolite(tmp_path / "no.evtx")
