@@ -44,7 +44,7 @@ def test_real_evtx_generates_atomic_sigma_cases(tmp_path: pathlib.Path) -> None:
     url = f"https://raw.githubusercontent.com/{SOURCE}/{REVISION}/{path}"
     with urllib.request.urlopen(url, timeout=90) as request:
         content = request.read()
-    git_blob = b"blob " + str(len(content)).encode() + b"\\0" + content
+    git_blob = b"blob " + str(len(content)).encode() + b"\0" + content
     actual_sha = hashlib.sha1(git_blob).hexdigest()
     assert actual_sha == GIT_BLOB_SHA1, (
         "External EVTX fixture changed unexpectedly; do not silently change "
@@ -70,7 +70,7 @@ def test_real_evtx_generates_atomic_sigma_cases(tmp_path: pathlib.Path) -> None:
     ]
     assert len(test_functions) == 1, (
         "Expected a real matched Windows Security record to generate an "
-        f"atomic pytest test, not a zero-case module:\\n{generated[:2500]}"
+        f"atomic pytest test, not a zero-case module:\n{generated[:2500]}"
     )
     assert generated.count("pytest.param(") >= 1
     assert RULE_UUID in generated
