@@ -14,7 +14,7 @@ EVTX and rule XML are different. They provide source material but do not contain
 
 ## Requirements
 
-`wazuhtestgen` requires Python 3.9 or newer. EVTX conversion additionally requires Windows; the `wazuhevtx` dependency is installed automatically on Windows. The experimental `zircolite` command requires the optional `zircolite` extra, which pins an upstream Zircolite Git revision alongside pytest and `wazuhtester`. Zircolite requires Python 3.11+; the regular installation remains compatible with Python 3.9+. The extra is for source-based experiments, not yet suitable for PyPI publishing.
+`wazuhtestgen` requires Python 3.9 or newer. EVTX conversion additionally requires Windows; the `wazuhevtx` dependency is installed automatically on Windows. The experimental `sigma` command requires the optional `sigma` extra, which pins an upstream Zircolite Git revision alongside pytest and `wazuhtester`. Zircolite requires Python 3.11+; the regular installation remains compatible with Python 3.9+. The extra is for source-based experiments, not yet suitable for PyPI publishing.
 
 ## Generated test dependencies
 
@@ -39,16 +39,16 @@ The `wazuhtester` pytest plugin can therefore skip tests that require Wazuh when
 Top level:
 
 ```text
-usage: wazuhtestgen [-h] [--debug] {ini,evtx,zircolite,rule} ...
+usage: wazuhtestgen [-h] [--debug] {ini,evtx,sigma,rule} ...
 
 wazuhtestgen generates pytest-formatted Wazuh rule tests from Wazuh
 INI regression tests, Windows EVTX files, or Wazuh rule XML.
 
 positional arguments:
-  {ini,evtx,zircolite,rule}
+  {ini,evtx,sigma,rule}
     ini             Generate pytest tests from Wazuh INI regression tests.
     evtx            Generate editable pytest templates from EVTX files.
-    zircolite       Generate executable atomic detection pytest drafts using Zircolite.
+    sigma           Generate executable atomic Sigma detection pytest drafts.
     rule            Generate editable pytest templates from Wazuh rule XML files.
 
 options:
@@ -68,15 +68,15 @@ EVTX:
 wazuhtestgen evtx --input_dir INPUT_DIR --output_dir OUTPUT_DIR
 ```
 
-Zircolite (experimental):
+Sigma (experimental):
 
 ```text
-python -m pip install -e ".[zircolite]"
-wazuhtestgen zircolite --input_dir INPUT_DIR --output_dir OUTPUT_DIR \
-  --ruleset PATH_TO_RULESET --zircolite-config PATH_TO_ZIRCOLITE_CONFIG
+python -m pip install -e ".[sigma]"
+wazuhtestgen sigma --input_dir INPUT_DIR --output_dir OUTPUT_DIR \
+  --ruleset PATH_TO_RULESET --mapping-config PATH_TO_ZIRCOLITE_CONFIG
 ```
 
-See [experimental Zircolite design](docs/experimental-zircolite.md) for the required Zircolite ruleset and field-mapping assets, Sigma metadata mapping, the atomic-only scope, and Python 3.11+ restriction.
+See [experimental Sigma design](docs/experimental-sigma.md) for the required Zircolite ruleset and field-mapping assets, Sigma metadata mapping, the atomic-only scope, and Python 3.11+ restriction.
 
 Wazuh rules:
 
@@ -205,9 +205,9 @@ def test_scenario() -> None:
 
 The generator deliberately does not invent a rule ID, MITRE ATT&CK technique, or other expected detection from the EVTX contents.
 
-## Experimental Zircolite atomic output
+## Experimental Sigma atomic output
 
-The `zircolite` command consumes the same EVTX files as `wazuhevtx`, runs Zircolite against each, and joins atomic Sigma detections to the Wazuh-compatible JSON events. It produces runnable parametrized pytest cases with proposed minimum alert severity and MITRE ATT&CK IDs. Initial assertion failures are expected in Red–Green–Refactor TDD. Aggregate/correlation Sigma results are excluded until temporal replay semantics can be implemented reliably. The existing `evtx` command remains skipped-template generation and is unchanged.
+The `sigma` command consumes the same EVTX files as `wazuhevtx`, uses Zircolite as its initial Sigma backend against each, and joins atomic Sigma detections to the Wazuh-compatible JSON events. It produces runnable parametrized pytest cases with proposed minimum alert severity and MITRE ATT&CK IDs. Initial assertion failures are expected in Red–Green–Refactor TDD. Aggregate/correlation Sigma results are excluded until temporal replay semantics can be implemented reliably. The existing `evtx` command remains skipped-template generation and is unchanged.
 
 ## Generated output directory
 
