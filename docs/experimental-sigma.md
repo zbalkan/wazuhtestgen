@@ -30,13 +30,31 @@ separate `config/` and `rules/` assets. Use an upstream Zircolite source
 checkout for those files. Both are required to avoid silently running with
 incorrect field mappings or without a ruleset.
 
-Example (Windows, Python 3.11+):
+### Upstream resolver conflict
+
+Zircolite 4.5.0 requires `pysigma>=2,<3`, but the current releases of
+`pysigma-pipeline-sysmon` and `pysigma-pipeline-windows` still declare
+`pysigma<2`. Their metadata is inconsistent with Zircolite's pySigma 2
+configuration. Zircolite documents using a dependency override in PDM/uv,
+and explicitly notes that a standard resolver cannot reconcile the bounds.
+
+The experimental `requirements/sigma-overrides.txt` replaces these
+conflicting bounds with `pysigma>=2,<3`. Use `uv pip install --override`,
+**not** `pip install -c` (constraints only tighten dependencies and cannot
+override an incompatible upper bound). This bypasses pipeline metadata,
+so it requires integration testing before the experimental mode is released.
+Ordinary `pip install -e ".[sigma]"` will still fail while upstream metadata
+remains incompatible. Standard `wazuhtestgen` installations are unaffected.
+
+Example (PowerShell, Windows, Python 3.11+, from the wazuhtestgen checkout):
 
 ```powershell
-python -m pip install -e ".[sigma]"
+py -3.11 -m venv .venv
+.\\.venv\\Scripts\\python.exe -m pip install "uv>=0.9,<1"
+.\\.venv\\Scripts\\uv.exe pip install --python .\\.venv\\Scripts\\python.exe --override requirements/sigma-overrides.txt -e ".[sigma]"
 git clone https://github.com/wagga40/Zircolite.git C:\tools\Zircolite
 git -C C:\tools\Zircolite checkout 2557ed1672e9f0281fcb2937bf38dd49cbc52d8e
-wazuhtestgen sigma `
+.\\.venv\\Scripts\\wazuhtestgen.exe sigma `
   --input_dir C:\EVTX `
   --output_dir C:\tests `
   --ruleset C:\tools\Zircolite\rules\rules_windows_merged.json `
