@@ -18,7 +18,9 @@ determines the final outcome. No Wazuh rule IDs are assumed.
 
 The standard wazuhtestgen package retains Python >=3.9. The experimental
 `[sigma]` extra opts into Python >=3.11, upstream Zircolite's native
-build/dependency requirements, pytest, and wazuhtester. This branch pins
+build/dependency requirements, and pytest. `wazuhtester` is an extra dependency
+only on Linux because it requires a local Wazuh `wazuh-logtest` Unix socket.
+Windows generates templates; Linux executes them using `wazuhtester`. This branch pins
 Zircolite's source revision
 `2557ed1672e9f0281fcb2937bf38dd49cbc52d8e` because a Zircolite 4.5.x
 distribution is not currently available on PyPI. Direct VCS dependencies
@@ -60,6 +62,15 @@ git -C C:\tools\Zircolite checkout 2557ed1672e9f0281fcb2937bf38dd49cbc52d8e
   --ruleset C:\tools\Zircolite\rules\rules_windows_merged.json `
   --mapping-config C:\tools\Zircolite\config\config.yaml
 ```
+
+### Running the generated tests
+
+Generated `test_sigma_*.py` modules are **not** intended to execute on
+Windows: they import `wazuhtester`, which only supports Linux and expects
+access to the manager's local `wazuh-logtest` Unix socket. Transfer the
+generated test modules to a Linux environment with Wazuh and `wazuhtester`
+installed, then run pytest there. Failure of a Wazuh assertion is the intended
+Red stage; inability to reach the logtest socket is an infrastructure error.
 
 For reproducible results, use source assets from the same revision as the
 pinned Zircolite library rather than a floating `master` checkout.
