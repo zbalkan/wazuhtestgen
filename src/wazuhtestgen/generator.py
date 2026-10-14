@@ -10,7 +10,7 @@ import sys
 from typing import Final
 
 from .internal.evtx import EvtxConverter
-from .internal.zircolite import ZircoliteConverter
+from .internal.sigma import SigmaConverter
 from .internal.ini import IniConverter
 from .internal.rule import RuleConverter
 
@@ -31,7 +31,7 @@ def _build_parser() -> argparse.ArgumentParser:
     for command, help_text in (
         ("ini", "Generate pytest tests from Wazuh INI regression tests."),
         ("evtx", "Generate editable pytest templates from EVTX files."),
-        ("zircolite", "Generate Zircolite-informed atomic EVTX pytest drafts (experimental)."),
+        ("sigma", "Generate Sigma-informed atomic EVTX pytest drafts (experimental)."),
         ("rule", "Generate editable pytest templates from Wazuh rule XML files."),
     ):
         subparser = subparsers.add_parser(command, help=help_text)
@@ -43,14 +43,14 @@ def _build_parser() -> argparse.ArgumentParser:
             "--output_dir", "-o", required=True,
             help="Directory where generated Python tests will be saved.",
         )
-        if command == "zircolite":
+        if command == "sigma":
             subparser.add_argument(
                 "--ruleset", required=True,
-                help="Zircolite JSON ruleset or Sigma YAML path.",
+                help="Sigma YAML rules or a compiled Sigma backend ruleset.",
             )
             subparser.add_argument(
-                "--zircolite-config", required=True,
-                help="Zircolite field mappings config/config.yaml (from Zircolite source).",
+                "--mapping-config", required=True,
+                help="Sigma backend field mappings file (config.yaml for Zircolite).",
             )
     return parser
 
@@ -58,7 +58,7 @@ def _build_parser() -> argparse.ArgumentParser:
 def _parse_args() -> argparse.Namespace:
     parser = _build_parser()
     args = parser.parse_args()
-    if args.command in ("evtx", "zircolite") and platform.system() != "Windows":
+    if args.command in ("evtx", "sigma") and platform.system() != "Windows":
         parser.error(
             f"the {args.command} command requires Windows, because wazuhevtx reads EVTX "
             "files through the Windows event log API. The ini and rule commands "
@@ -102,11 +102,11 @@ def main(args: argparse.Namespace | None = None) -> None:
             )
     elif args.command == "evtx":
         EvtxConverter().convert(input_directory, output_directory)
-    elif args.command == "zircolite":
-        ZircoliteConverter(
+    elif args.command == "sigma":
+        SigmaConverter(
             EvtxConverter().converter,
             ruleset=args.ruleset,
-            config=args.zircolite_config,
+            config=args.mapping_config,
         ).convert(input_directory, output_directory)
     elif args.command == "rule":
         RuleConverter().convert(input_directory, output_directory)
