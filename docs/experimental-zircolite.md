@@ -34,12 +34,13 @@ Example (Windows, Python 3.11+):
 
 ```powershell
 python -m pip install -e ".[zircolite]"
-git clone https://github.com/wagga40/Zircolite.git C:\\tools\\Zircolite
+git clone https://github.com/wagga40/Zircolite.git C:\tools\Zircolite
+git -C C:\tools\Zircolite checkout 2557ed1672e9f0281fcb2937bf38dd49cbc52d8e
 wazuhtestgen zircolite `
-  --input_dir C:\\EVTX `
-  --output_dir C:\\tests `
-  --ruleset C:\\tools\\Zircolite\\rules\\rules_windows_merged.json `
-  --zircolite-config C:\\tools\\Zircolite\\config\\config.yaml
+  --input_dir C:\EVTX `
+  --output_dir C:\tests `
+  --ruleset C:\tools\Zircolite\\rules\\rules_windows_merged.json `
+  --zircolite-config C:\tools\Zircolite\\config\\config.yaml
 ```
 
 For reproducible results, use source assets from the same revision as the
