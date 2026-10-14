@@ -39,8 +39,8 @@ git -C C:\tools\Zircolite checkout 2557ed1672e9f0281fcb2937bf38dd49cbc52d8e
 wazuhtestgen sigma `
   --input_dir C:\EVTX `
   --output_dir C:\tests `
-  --ruleset C:\tools\Zircolite\\rules\\rules_windows_merged.json `
-  --mapping-config C:\tools\Zircolite\\config\\config.yaml
+  --ruleset C:\tools\Zircolite\rules\rules_windows_merged.json `
+  --mapping-config C:\tools\Zircolite\config\config.yaml
 ```
 
 For reproducible results, use source assets from the same revision as the
