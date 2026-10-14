@@ -233,3 +233,30 @@ def test_experimental_sigma_package_policy() -> None:
     project = (root / "pyproject.toml").read_text(encoding="utf-8")
     assert 'sigma = [' in project
     assert 'wazuhtester>=0.1,<1; platform_system == \'Linux\'' in project
+
+
+def test_zircolite_non_utf8_failure_output_remains_reportable(tmp_path, monkeypatch) -> None:
+    """A Windows console may emit invalid cp1252/UTF-8 byte sequences."""
+    if sys.version_info < (3, 11):
+        pytest.skip("Sigma optional dependency requires Python 3.11+")
+    monkeypatch.setattr(
+        "wazuhtestgen.internal.sigma.importlib.util.find_spec",
+        lambda _: object(),
+    )
+    monkeypatch.setattr(
+        "wazuhtestgen.internal.sigma.subprocess.run",
+        lambda *_args, **kwargs: SimpleNamespace(
+            returncode=1, stderr=b"\x90 unexpected console output",
+            stdout=b"",
+        ),
+    )
+    ruleset = tmp_path / "probe.json"
+    config = tmp_path / "config.yaml"
+    ruleset.write_text("[]", encoding="utf-8")
+    config.write_text("{}", encoding="utf-8")
+    with pytest.raises(RuntimeError, match="Zircolite failed:") as raised:
+        run_zircolite(
+            tmp_path / "sample.evtx",
+            ruleset=str(ruleset), config=str(config),
+        )
+    assert "unexpected console output" in str(raised.value)
