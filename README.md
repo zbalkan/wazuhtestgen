@@ -73,7 +73,7 @@ Sigma (experimental):
 ```text
 python -m pip install -e ".[sigma]"
 wazuhtestgen sigma --input_dir INPUT_DIR --output_dir OUTPUT_DIR \
-  --ruleset PATH_TO_RULESET --mapping-config PATH_TO_ZIRCOLITE_CONFIG
+  --ruleset PATH_TO_RULESET --mapping-config PATH_TO_MAPPING_CONFIG
 ```
 
 See [experimental Sigma design](docs/experimental-sigma.md) for the required Zircolite ruleset and field-mapping assets, Sigma metadata mapping, the atomic-only scope, and Python 3.11+ restriction.
