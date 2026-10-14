@@ -14,7 +14,7 @@ EVTX and rule XML are different. They provide source material but do not contain
 
 ## Requirements
 
-`wazuhtestgen` requires Python 3.9 or newer. EVTX conversion additionally requires Windows; the `wazuhevtx` dependency is installed automatically on Windows. The experimental `zircolite` command uses a separately installed Zircolite executable, preserving the Python 3.9 support floor even though Zircolite source requires Python 3.11+.
+`wazuhtestgen` requires Python 3.9 or newer. EVTX conversion additionally requires Windows; the `wazuhevtx` dependency is installed automatically on Windows. The experimental `zircolite` command requires the optional `zircolite` extra, which installs upstream Zircolite, pytest and `wazuhtester`. Zircolite requires Python 3.11+; the regular installation remains compatible with Python 3.9+.
 
 ## Generated test dependencies
 
@@ -71,10 +71,11 @@ wazuhtestgen evtx --input_dir INPUT_DIR --output_dir OUTPUT_DIR
 Zircolite (experimental):
 
 ```text
-wazuhtestgen zircolite --input_dir INPUT_DIR --output_dir OUTPUT_DIR --zircolite-executable Zircolite.exe
+python -m pip install "wazuhtestgen[zircolite]"
+wazuhtestgen zircolite --input_dir INPUT_DIR --output_dir OUTPUT_DIR
 ```
 
-See [experimental Zircolite design](docs/experimental-zircolite.md) for the optional `--ruleset` flag, Sigma metadata mapping, the atomic-only scope, and the Python 3.11+ requirement of upstream Zircolite when run from source.
+See [experimental Zircolite design](docs/experimental-zircolite.md) for the optional `--ruleset` flag, Sigma metadata mapping, the atomic-only scope, and the Python 3.11+ requirement of upstream Zircolite.
 
 Wazuh rules:
 
