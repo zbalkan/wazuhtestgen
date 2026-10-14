@@ -1,0 +1,15 @@
+[
+  {
+    "title": "Atomic-EVTX benign PowerShell event join probe",
+    "id": "c723838a-1d83-4dd0-880d-fbc2a8a3a210",
+    "status": "test",
+    "description": "Integration-only benign parser/join smoke check; not a malicious Sigma detection or negative test.",
+    "author": "wazuhtestgen integration suite",
+    "tags": [],
+    "level": "informational",
+    "rule": [
+      "SELECT * FROM logs LIMIT 1"
+    ],
+    "filename": "atomic_evtx_benign_join_probe.yml"
+  }
+]
