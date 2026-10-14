@@ -50,11 +50,11 @@ Example (PowerShell, Windows, Python 3.11+, from the wazuhtestgen checkout):
 
 ```powershell
 py -3.11 -m venv .venv
-.\\.venv\\Scripts\\python.exe -m pip install "uv>=0.9,<1"
-.\\.venv\\Scripts\\uv.exe pip install --python .\\.venv\\Scripts\\python.exe --override requirements/sigma-overrides.txt -e ".[sigma]"
+.\.venv\Scripts\python.exe -m pip install "uv>=0.9,<1"
+.\.venv\Scripts\uv.exe pip install --python .\.venv\Scripts\python.exe --override requirements/sigma-overrides.txt -e ".[sigma]"
 git clone https://github.com/wagga40/Zircolite.git C:\tools\Zircolite
 git -C C:\tools\Zircolite checkout 2557ed1672e9f0281fcb2937bf38dd49cbc52d8e
-.\\.venv\\Scripts\\wazuhtestgen.exe sigma `
+.\.venv\Scripts\wazuhtestgen.exe sigma `
   --input_dir C:\EVTX `
   --output_dir C:\tests `
   --ruleset C:\tools\Zircolite\rules\rules_windows_merged.json `
