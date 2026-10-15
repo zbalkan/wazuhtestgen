@@ -193,6 +193,32 @@ alert at all, because informative or unrelated rules can legitimately match.
 Correlations, temporal events, and multi-event ATT&CK scenarios remain
 outside the scope of these atomic acceptance tests.
 
+### Paired PowerShell behavior check (Atomic-EVTX)
+
+The opt-in Windows test also downloads two files from
+[arniki/atomic-evtx](https://github.com/arniki/atomic-evtx) at
+`8de5fa8f158b4d72d1e3c6f07053162c90ee6238`:
+
+- `ttp_evtx/T1560-1/T1560-1_Windows PowerShell.evtx`, Git blob
+  `dd2e8a7a67158890d06a457f78ac4a240632fe0e`.
+- `benign_activity_logs/powershell_820.evtx`, Git blob
+  `a58139976d030f2c64d0bd2e1c6dbd540c883964`.
+
+They run through the **same** compiled atomic query matching the captured
+`T1560-data-ps.zip` PowerShell command string. The test requires a positive
+Zircolite match and generated pytest parameters for the attack fixture,
+and zero Zircolite matches for the benign fixture. The query is intentionally
+scenario-specific and does not claim that `Compress-Archive` is malicious
+in general. In particular, the benign corpus is not proof that all its
+events are safe and this is not a Wazuh false-positive rate measurement.
+
+As with the other Atomic-EVTX fixtures, event filenames and folder ATT&CK
+tags are scenario provenance, not an oracle for each event's ATT&CK mapping.
+The Atomic-EVTX repository has no declared top-level license. CI downloads
+its pinned binary files transiently and verifies their Git blob SHA-1 values;
+they are **not** redistributed or checked in. Review licensing before any
+external redistribution.
+
 ## Validation status
 
 Offline unit tests use mocked Sigma backend outputs and wazuhevtx records.
