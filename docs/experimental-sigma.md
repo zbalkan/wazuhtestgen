@@ -16,16 +16,17 @@ determines the final outcome. No Wazuh rule IDs are assumed.
 
 ## Runtime and opt-in dependency restrictions
 
-The standard wazuhtestgen package retains Python >=3.9. The experimental
-`[sigma]` extra opts into Python >=3.11, upstream Zircolite's native
-build/dependency requirements, and pytest. `wazuhtester` is an extra dependency
+The standard wazuhtestgen package retains Python >=3.9. The `[sigma]` extra adds
+pytest and Linux-only wazuhtester. Installing the experimental Zircolite provider
+from `requirements/sigma-backend.txt` opts into Python >=3.11 and its native
+build/dependency requirements. The provider's Git URL is not included in the
+published package metadata. `wazuhtester` is an extra dependency
 only on Linux because it requires a local Wazuh `wazuh-logtest` Unix socket.
-Windows generates templates; Linux executes them using `wazuhtester`. This branch pins
+Windows generates templates; Linux executes them using `wazuhtester`. The source-only provider requirements pin
 Zircolite's source revision
 `2557ed1672e9f0281fcb2937bf38dd49cbc52d8e` because a Zircolite 4.5.x
-distribution is not currently available on PyPI. Direct VCS dependencies
-are an **experimental source-install mechanism**; they cannot be shipped
-unchanged in a future PyPI release of wazuhtestgen.
+distribution is not currently available on PyPI. The direct VCS dependency is an **experimental source-install mechanism**,
+kept outside `pyproject.toml` so the package itself remains publishable.
 
 The selected Sigma backend's Python package does **not** reliably include its
 separate `config/` and `rules/` assets. Use an upstream Zircolite source
@@ -45,15 +46,15 @@ conflicting bounds with `pysigma>=2,<3`. Use `uv pip install --override`,
 **not** `pip install -c` (constraints only tighten dependencies and cannot
 override an incompatible upper bound). This bypasses pipeline metadata,
 so it requires integration testing before the experimental mode is released.
-Ordinary `pip install -e ".[sigma]"` will still fail while upstream metadata
-remains incompatible. Standard `wazuhtestgen` installations are unaffected.
+The `sigma` extra alone is resolvable but does not install Zircolite; use the
+provider requirements with the uv override. Standard installations are unaffected.
 
 Example (PowerShell, Windows, Python 3.11+, from the wazuhtestgen checkout):
 
 ```powershell
 py -3.11 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install "uv>=0.9,<1"
-.\.venv\Scripts\uv.exe pip install --python .\.venv\Scripts\python.exe --override requirements/sigma-overrides.txt -e ".[sigma]"
+.\.venv\Scripts\uv.exe pip install --python .\.venv\Scripts\python.exe -e ".[sigma]" -r requirements/sigma-backend.txt --override requirements/sigma-overrides.txt
 git clone https://github.com/wagga40/Zircolite.git C:\tools\Zircolite
 git -C C:\tools\Zircolite checkout 2557ed1672e9f0281fcb2937bf38dd49cbc52d8e
 .\.venv\Scripts\wazuhtestgen.exe sigma `
@@ -78,6 +79,25 @@ The Python module is invoked using
 `sys.executable -m zircolite --events ... --ruleset ... --config ...`.
 No standalone executable is needed. The subprocess isolates Zircolite's
 state without coupling to its private processing APIs.
+
+### Native Sigma processing pipelines
+
+Pass one or more processing pipelines using repeatable `--pipeline` options
+when the ruleset contains native Sigma YAML, for example
+`--pipeline windows-logsources --pipeline sysmon`.
+No automatic pipeline is inferred. Precompiled Zircolite JSON rulesets already
+contain SQL and do not require a conversion pipeline. Confirm the pipeline
+matches the event source; omitting a required pipeline may change detection
+semantics.
+
+### Atomic-generation diagnostics
+
+The CLI reports converted event counts, Zircolite atomic matches, generated
+pytest cases, deferred correlations, and unresolved or duplicate joins.
+A file where the backend reports atomic matches but none can be uniquely joined
+to Wazuh events causes generation to fail rather than silently creating a
+comment-only module. Zero detection findings and correlation-only output are
+reported but are not treated as detection failures.
 
 ## Input format
 
