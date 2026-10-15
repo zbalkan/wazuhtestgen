@@ -8,7 +8,7 @@
     "tags": ["attack.t1560"],
     "level": "medium",
     "rule": [
-      "SELECT * FROM logs WHERE EventID = 400 AND _sigma_fulltext LIKE '%T1560-data-ps.zip%'"
+      "SELECT * FROM logs WHERE EventID = 400 AND Data LIKE '%T1560-data-ps.zip%'"
     ],
     "filename": "atomic_evtx_t1560_powershell_probe.yml"
   }
