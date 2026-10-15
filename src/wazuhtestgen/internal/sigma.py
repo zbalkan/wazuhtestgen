@@ -71,7 +71,8 @@ def matched_event_identity(event: dict[str, Any]) -> tuple[str, str, str, str] |
 
 def run_zircolite(evtx: pathlib.Path,
                   ruleset: str | None = None,
-                  config: str | None = None) -> list[dict[str, Any]]:
+                  config: str | None = None,
+                  pipelines: tuple[str, ...] = ()) -> list[dict[str, Any]]:
     if sys.version_info < (3, 11):
         raise RuntimeError(
             "The experimental Sigma mode requires Python >=3.11. "
@@ -80,7 +81,8 @@ def run_zircolite(evtx: pathlib.Path,
     if importlib.util.find_spec("zircolite") is None:
         raise RuntimeError(
             "The optional Zircolite package is not installed. "
-            "Install wazuhtestgen[sigma] with Python >=3.11."
+            "Install the pinned provider from requirements/sigma-backend.txt "
+            "using Python >=3.11."
         )
     if not ruleset or not config:
         raise RuntimeError(
@@ -100,6 +102,8 @@ def run_zircolite(evtx: pathlib.Path,
             "--ruleset", str(pathlib.Path(ruleset).resolve()),
             "--config", str(pathlib.Path(config).resolve()),
         ]
+        for pipeline in pipelines:
+            command.extend(("--pipeline", pipeline))
         # Capture raw bytes. Zircolite's Windows console output can contain
         # bytes that are invalid in the runner's locale (for example cp1252).
         # text=True creates reader threads which can crash while decoding and
@@ -174,10 +178,12 @@ class SigmaConverter:
 
     def __init__(self, evtx_converter: Any,
                  ruleset: str | None = None,
-                 config: str | None = None) -> None:
+                 config: str | None = None,
+                 pipelines: tuple[str, ...] = ()) -> None:
         self.evtx_converter = evtx_converter
         self.ruleset = ruleset
         self.config = config
+        self.pipelines = pipelines
 
     def convert(self, input_directory: str, output_directory: str) -> None:
         source = pathlib.Path(input_directory)
@@ -188,8 +194,26 @@ class SigmaConverter:
             if not evtx.is_file() or evtx.suffix.lower() != ".evtx":
                 continue
             logs = list(self.evtx_converter.to_json(evtx))
-            detections = run_zircolite(evtx, self.ruleset, self.config)
+            options = {"pipelines": self.pipelines} if self.pipelines else {}
+            detections = run_zircolite(evtx, self.ruleset, self.config, **options)
             matches, counts = correlate(logs, detections, evtx)
+            atomic_rows = sum(
+                len(result.get("matches") or ())
+                for result in detections
+                if result.get("result_type") != "correlation"
+            )
+            if atomic_rows and not matches:
+                raise RuntimeError(
+                    f"{evtx}: {atomic_rows} atomic match rows were reported by "
+                    "the Sigma backend, but none joined uniquely to Wazuh "
+                    f"events (unresolved={counts['unresolved']})."
+                )
+            print(
+                f"Sigma {evtx.name}: events={len(logs)}, "
+                f"atomic_matches={atomic_rows}, generated={len(matches)}, "
+                f"deferred_correlations={counts['correlations']}, "
+                f"unresolved={counts['unresolved']}, duplicates={counts['duplicates']}"
+            )
             if any(counts.values()):
                 logging.warning("%s: skipped/ignored Sigma backend results: %s",
                                 evtx, counts)
