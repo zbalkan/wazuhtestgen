@@ -26,3 +26,37 @@ jobs:
       - run: python -m pytest -v
       - run: wazuhtestgen --help
       - run: python -m wazuhtestgen --help
+
+  sigma-extra:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+      - run: python -m pip install --upgrade pip
+      # Pip cannot resolve the released pipeline metadata against pySigma 2.
+      # uv's override matches Zircolite's own supported development setup.
+      - run: python -m pip install "uv>=0.9,<1"
+      - run: uv pip install --system -e ".[sigma]" -r requirements/sigma-backend.txt --override requirements/sigma-overrides.txt
+      - run: python -m zircolite --help
+      - run: python -m zircolite --pipeline-list
+      - run: python -c "import zircolite, wazuhevtx; print(zircolite.__version__)"
+      - run: python -m pytest tests/test_sigma.py -v
+      - run: wazuhtestgen sigma --help
+      - run: python -m pip install build twine
+      - run: python -m build
+      - run: python -m twine check --strict dist/*
+      # Real Windows EVTX regression: pin and hash-verify CC0 and Atomic-EVTX
+      # attack/benign fixtures. No external EVTX binaries are vendored.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: wagga40/Zircolite
+          ref: 2557ed1672e9f0281fcb2937bf38dd49cbc52d8e
+          path: .zircolite-upstream
+          persist-credentials: false
+      - name: Real EVTX to Sigma atomic join
+        run: python -m pytest tests/test_sigma_real_evtx.py tests/test_sigma_atomic_evtx_corpus.py -v
+        env:
+          SIGMA_REAL_EVTX: "1"
+          SIGMA_ZIRCOLITE_CONFIG: ${{ github.workspace }}/.zircolite-upstream/config/config.yaml

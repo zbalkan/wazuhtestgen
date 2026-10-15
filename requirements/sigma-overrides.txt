@@ -1,0 +1,11 @@
+# Experimental Sigma/Zircolite 4.5.0 resolver override.
+#
+# Zircolite and pysigma-backend-sqlite require pySigma >=2,<3, while the
+# released Sysmon and Windows pipelines still claim pySigma <2.
+# Zircolite upstream explicitly tests/uses pySigma 2 with these pipelines
+# via its [tool.pdm.resolution.overrides] and [tool.uv] settings.
+#
+# This deliberately replaces, rather than adds to, the pipeline constraints.
+# It must be used with 'uv pip install --override', not pip -c/--constraint.
+# Remove once upstream pipeline distributions declare pySigma 2 support.
+pysigma>=2.0.0,<3

@@ -10,6 +10,7 @@ import sys
 from typing import Final
 
 from .internal.evtx import EvtxConverter
+from .internal.sigma import SigmaConverter
 from .internal.ini import IniConverter
 from .internal.rule import RuleConverter
 
@@ -30,6 +31,7 @@ def _build_parser() -> argparse.ArgumentParser:
     for command, help_text in (
         ("ini", "Generate pytest tests from Wazuh INI regression tests."),
         ("evtx", "Generate editable pytest templates from EVTX files."),
+        ("sigma", "Generate Sigma-informed atomic EVTX pytest drafts (experimental)."),
         ("rule", "Generate editable pytest templates from Wazuh rule XML files."),
     ):
         subparser = subparsers.add_parser(command, help=help_text)
@@ -41,15 +43,28 @@ def _build_parser() -> argparse.ArgumentParser:
             "--output_dir", "-o", required=True,
             help="Directory where generated Python tests will be saved.",
         )
+        if command == "sigma":
+            subparser.add_argument(
+                "--ruleset", required=True,
+                help="Sigma YAML rules or a compiled Sigma backend ruleset.",
+            )
+            subparser.add_argument(
+                "--mapping-config", required=True,
+                help="Sigma backend field mappings file (config.yaml for Zircolite).",
+            )
+            subparser.add_argument(
+                "--pipeline", action="append", default=[],
+                help="Sigma processing pipeline for native YAML rules (repeatable).",
+            )
     return parser
 
 
 def _parse_args() -> argparse.Namespace:
     parser = _build_parser()
     args = parser.parse_args()
-    if args.command == "evtx" and platform.system() != "Windows":
+    if args.command in ("evtx", "sigma") and platform.system() != "Windows":
         parser.error(
-            "the evtx command requires Windows, because wazuhevtx reads EVTX "
+            f"the {args.command} command requires Windows, because wazuhevtx reads EVTX "
             "files through the Windows event log API. The ini and rule commands "
             "run on any operating system."
         )
@@ -91,6 +106,13 @@ def main(args: argparse.Namespace | None = None) -> None:
             )
     elif args.command == "evtx":
         EvtxConverter().convert(input_directory, output_directory)
+    elif args.command == "sigma":
+        SigmaConverter(
+            EvtxConverter().converter,
+            ruleset=args.ruleset,
+            config=args.mapping_config,
+            pipelines=tuple(getattr(args, "pipeline", ())),
+        ).convert(input_directory, output_directory)
     elif args.command == "rule":
         RuleConverter().convert(input_directory, output_directory)
 

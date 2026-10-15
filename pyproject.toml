@@ -35,6 +35,14 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Opt-in Sigma test tooling. The experimental Zircolite provider needs
+# Python >=3.11, and is installed separately from requirements/sigma-backend.txt
+# because PyPI-distributed packages cannot declare direct Git URL dependencies.
+# wazuhtester executes only on Linux with the local wazuh-logtest Unix socket.
+sigma = [
+  "wazuhtester>=0.1,<1; platform_system == 'Linux'",
+  "pytest>=8,<10",
+]
 test = ["pytest>=8,<10"]
 build = ["build>=1.2", "twine>=5"]
 dev = ["pytest>=8,<10", "build>=1.2", "twine>=5"]

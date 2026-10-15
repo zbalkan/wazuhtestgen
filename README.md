@@ -14,7 +14,7 @@ EVTX and rule XML are different. They provide source material but do not contain
 
 ## Requirements
 
-`wazuhtestgen` requires Python 3.9 or newer. EVTX conversion additionally requires Windows; the `wazuhevtx` dependency is installed automatically on Windows.
+`wazuhtestgen` requires Python 3.9 or newer. EVTX conversion additionally requires Windows; the `wazuhevtx` dependency is installed automatically on Windows. The experimental `sigma` command uses the optional `sigma` extra for test tooling and installs the pinned Zircolite source separately from `requirements/sigma-backend.txt`. `wazuhtester` is included only on Linux, because its logtest client needs the local Wazuh Unix socket. Zircolite requires Python 3.11+; the regular installation remains compatible with Python 3.9+. The package metadata is publishable; only the optional provider installation uses a source-only Git dependency. Upstream Sysmon and Windows pySigma pipelines still specify pySigma <2, conflicting with Zircolite's >=2 requirement. For this opt-in mode, use uv with `requirements/sigma-overrides.txt` rather than pip's resolver.
 
 ## Generated test dependencies
 
@@ -39,15 +39,16 @@ The `wazuhtester` pytest plugin can therefore skip tests that require Wazuh when
 Top level:
 
 ```text
-usage: wazuhtestgen [-h] [--debug] {ini,evtx,rule} ...
+usage: wazuhtestgen [-h] [--debug] {ini,evtx,sigma,rule} ...
 
 wazuhtestgen generates pytest-formatted Wazuh rule tests from Wazuh
 INI regression tests, Windows EVTX files, or Wazuh rule XML.
 
 positional arguments:
-  {ini,evtx,rule}
+  {ini,evtx,sigma,rule}
     ini             Generate pytest tests from Wazuh INI regression tests.
     evtx            Generate editable pytest templates from EVTX files.
+    sigma           Generate executable atomic Sigma detection pytest drafts.
     rule            Generate editable pytest templates from Wazuh rule XML files.
 
 options:
@@ -66,6 +67,18 @@ EVTX:
 ```text
 wazuhtestgen evtx --input_dir INPUT_DIR --output_dir OUTPUT_DIR
 ```
+
+Sigma (experimental):
+
+```text
+python -m pip install "uv>=0.9,<1"
+uv pip install -e ".[sigma]" -r requirements/sigma-backend.txt \
+  --override requirements/sigma-overrides.txt
+wazuhtestgen sigma --input_dir INPUT_DIR --output_dir OUTPUT_DIR \
+  --ruleset PATH_TO_RULESET --mapping-config PATH_TO_MAPPING_CONFIG
+```
+
+Run this in an active Python 3.11+ virtual environment from the repository checkout. EVTX/Sigma templates are generated on Windows using `wazuhevtx` and Zircolite, while the resulting pytest tests must be executed separately on Linux with `wazuhtester` and access to a Wazuh manager. The override intentionally replaces the conflicting pipeline constraints, matching Zircolite's own supported development environment. It is not a normal pip constraints file; installing the `sigma` extra alone does not install Zircolite; use the command above to install the experimental provider with the override. For native Sigma YAML, optionally add repeatable `--pipeline sysmon` / `--pipeline windows-logsources` arguments; precompiled JSON rulesets do not require this. The CLI prints generation counts and fails when reported atomic matches cannot be joined to Wazuh events. See [experimental Sigma design](docs/experimental-sigma.md) for the required Zircolite ruleset and field-mapping assets, Sigma metadata mapping, and atomic-only scope.
 
 Wazuh rules:
 
@@ -193,6 +206,10 @@ def test_scenario() -> None:
 ```
 
 The generator deliberately does not invent a rule ID, MITRE ATT&CK technique, or other expected detection from the EVTX contents.
+
+## Experimental Sigma atomic output
+
+The `sigma` command consumes the same EVTX files as `wazuhevtx`, uses Zircolite as its initial Sigma backend against each, and joins atomic Sigma detections to the Wazuh-compatible JSON events. It produces runnable parametrized pytest cases with proposed minimum alert severity and MITRE ATT&CK IDs. Initial assertion failures are expected in Red–Green–Refactor TDD. Aggregate/correlation Sigma results are excluded until temporal replay semantics can be implemented reliably. The existing `evtx` command remains skipped-template generation and is unchanged.
 
 ## Generated output directory
 

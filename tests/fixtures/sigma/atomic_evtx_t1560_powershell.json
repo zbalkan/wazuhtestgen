@@ -1,0 +1,15 @@
+[
+  {
+    "title": "Atomic-EVTX PowerShell Compress-Archive integration witness",
+    "id": "21ad178e-7626-4be9-8dbe-7eeb1e93ca2d",
+    "status": "test",
+    "description": "Deterministic atomic-event join probe. Detects the particular T1560-1 captured command string, not generic malicious PowerShell usage.",
+    "author": "wazuhtestgen integration tests",
+    "tags": ["attack.t1560"],
+    "level": "medium",
+    "rule": [
+      "SELECT * FROM logs WHERE EventID = 400 AND Data LIKE '%T1560-data-ps.zip%'"
+    ],
+    "filename": "atomic_evtx_t1560_powershell_probe.yml"
+  }
+]

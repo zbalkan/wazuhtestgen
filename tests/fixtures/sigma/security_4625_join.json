@@ -1,0 +1,13 @@
+[
+  {
+    "title": "Windows Security Failed Logon — integration join probe",
+    "id": "83b95893-6526-4cf6-ac1d-e93468995316",
+    "status": "test",
+    "description": "Integration-only atomic rule verifying EVTX to Zircolite/Wazuh record correlation. This does not assert attack behavior.",
+    "author": "wazuhtestgen test suite",
+    "tags": ["attack.t1078"],
+    "level": "medium",
+    "rule": ["SELECT * FROM logs WHERE EventID = 4625"],
+    "filename": "evtx_4625_join_probe.yml"
+  }
+]
