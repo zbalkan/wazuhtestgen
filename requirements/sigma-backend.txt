@@ -1,0 +1,6 @@
+# Opt-in provider for experimental Sigma generation.
+# Keep this direct-VCS dependency outside pyproject.toml so the package
+# can be published to PyPI. Run with the version conflict override:
+# uv pip install -e ".[sigma]" -r requirements/sigma-backend.txt
+#   --override requirements/sigma-overrides.txt
+Zircolite @ git+https://github.com/wagga40/Zircolite.git@2557ed1672e9f0281fcb2937bf38dd49cbc52d8e
