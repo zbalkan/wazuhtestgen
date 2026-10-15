@@ -168,12 +168,14 @@ def test_subprocess_runner_reads_zircolite_result_array(
     mapping = tmp_path / "config.yaml"
     ruleset.write_text("[]", encoding="utf-8")
     mapping.write_text("{}", encoding="utf-8")
-    assert len(run_zircolite(evtx, ruleset=str(ruleset), config=str(mapping))) == 1
+    assert len(run_zircolite(evtx, ruleset=str(ruleset), config=str(mapping), pipelines=("sysmon", "windows-logsources"))) == 1
     assert commands[0][:3] == [sys.executable, "-m", "zircolite"]
     assert "--events" in commands[0]
     assert "--ruleset" in commands[0]
     assert commands[0][commands[0].index("--ruleset") + 1] == str(ruleset)
     assert commands[0][commands[0].index("--config") + 1] == str(mapping)
+    assert commands[0].count("--pipeline") == 2
+    assert commands[0][-4:] == ["--pipeline", "sysmon", "--pipeline", "windows-logsources"]
 
 
 def test_missing_optional_dependency_is_actionable(monkeypatch, tmp_path) -> None:
@@ -181,7 +183,7 @@ def test_missing_optional_dependency_is_actionable(monkeypatch, tmp_path) -> Non
         "wazuhtestgen.internal.sigma.importlib.util.find_spec",
         lambda name: None,
     )
-    with pytest.raises(RuntimeError, match=r"Python >=3.11|wazuhtestgen\[sigma\]"):
+    with pytest.raises(RuntimeError, match=r"Python >=3.11|requirements/sigma-backend.txt"):
         run_zircolite(tmp_path / "no.evtx")
 
 
@@ -232,6 +234,12 @@ def test_experimental_sigma_package_policy() -> None:
 
     project = (root / "pyproject.toml").read_text(encoding="utf-8")
     assert 'sigma = [' in project
+    # A direct Git URL in package metadata prevents publication to PyPI.
+    assert "Zircolite @ git+" not in project
+    backend = (root / "requirements" / "sigma-backend.txt").read_text(
+        encoding="utf-8"
+    )
+    assert "Zircolite @ git+https://github.com/wagga40/Zircolite.git@" in backend
     assert 'wazuhtester>=0.1,<1; platform_system == \'Linux\'' in project
 
 
@@ -260,3 +268,35 @@ def test_zircolite_non_utf8_failure_output_remains_reportable(tmp_path, monkeypa
             ruleset=str(ruleset), config=str(config),
         )
     assert "unexpected console output" in str(raised.value)
+
+
+def test_unjoinable_atomic_matches_are_not_a_successful_generation(
+    tmp_path, monkeypatch,
+) -> None:
+    inp = tmp_path / "input"
+    out = tmp_path / "output"
+    inp.mkdir()
+    (inp / "Security.evtx").write_bytes(b"fixture")
+
+    class FakeConverter:
+        def to_json(self, _path):
+            return iter([wazuh_event(1)])
+
+    monkeypatch.setattr(
+        "wazuhtestgen.internal.sigma.run_zircolite",
+        lambda *_args: [detection(999)],
+    )
+    with pytest.raises(RuntimeError, match="none joined uniquely"):
+        SigmaConverter(FakeConverter()).convert(str(inp), str(out))
+    assert list(out.glob("test_sigma_*.py")) == []
+
+
+def test_native_sigma_pipeline_argument_is_repeatable() -> None:
+    from wazuhtestgen.generator import _build_parser
+
+    args = _build_parser().parse_args([
+        "sigma", "-i", "input", "-o", "output",
+        "--ruleset", "sigma.yaml", "--mapping-config", "config.yaml",
+        "--pipeline", "sysmon", "--pipeline", "windows-logsources",
+    ])
+    assert args.pipeline == ["sysmon", "windows-logsources"]
