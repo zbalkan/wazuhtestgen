@@ -52,6 +52,10 @@ def _build_parser() -> argparse.ArgumentParser:
                 "--mapping-config", required=True,
                 help="Sigma backend field mappings file (config.yaml for Zircolite).",
             )
+            subparser.add_argument(
+                "--pipeline", action="append", default=[],
+                help="Sigma processing pipeline for native YAML rules (repeatable).",
+            )
     return parser
 
 
@@ -107,6 +111,7 @@ def main(args: argparse.Namespace | None = None) -> None:
             EvtxConverter().converter,
             ruleset=args.ruleset,
             config=args.mapping_config,
+            pipelines=tuple(getattr(args, "pipeline", ())),
         ).convert(input_directory, output_directory)
     elif args.command == "rule":
         RuleConverter().convert(input_directory, output_directory)
