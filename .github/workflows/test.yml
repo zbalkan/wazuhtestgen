@@ -28,7 +28,7 @@ jobs:
       - run: python -m wazuhtestgen --help
 
   sigma-extra:
-    if: github.ref_name == 'experimental/sigma-atomic' || github.ref_name == 'experimental/sigma-real-evtx-ci'
+    if: github.ref_name == 'experimental/sigma-atomic' || github.ref_name == 'experimental/sigma-real-evtx-ci' || github.ref_name == 'experimental/sigma-atomic-evtx-corpus'
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -48,14 +48,14 @@ jobs:
       # Real Windows EVTX regression: pin and hash-verify CC0 and Atomic-EVTX
       # attack/benign fixtures. No external EVTX binaries are vendored.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        if: github.ref_name == 'experimental/sigma-real-evtx-ci'
+        if: github.ref_name == 'experimental/sigma-real-evtx-ci' || github.ref_name == 'experimental/sigma-atomic-evtx-corpus'
         with:
           repository: wagga40/Zircolite
           ref: 2557ed1672e9f0281fcb2937bf38dd49cbc52d8e
           path: .zircolite-upstream
           persist-credentials: false
       - name: Real EVTX to Sigma atomic join
-        if: github.ref_name == 'experimental/sigma-real-evtx-ci'
+        if: github.ref_name == 'experimental/sigma-real-evtx-ci' || github.ref_name == 'experimental/sigma-atomic-evtx-corpus'
         run: python -m pytest tests/test_sigma_real_evtx.py tests/test_sigma_atomic_evtx_corpus.py -v
         env:
           SIGMA_REAL_EVTX: "1"
