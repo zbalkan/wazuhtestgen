@@ -71,10 +71,6 @@ package-dir = {"" = "src"}
 where = ["src"]
 include = ["wazuhtestgen*"]
 
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-addopts = "--import-mode=prepend"
-
 [tool.ruff.lint.per-file-ignores]
 # Renaming would change the module's import path for no functional gain.
 "src/wazuhtestgen/internal/iniParser.py" = ["N999"]

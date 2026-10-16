@@ -264,6 +264,12 @@ mypy
 python -m pytest
 ```
 
+`python -m pytest` runs the core tests, which CI runs on Linux, Windows and macOS. Tests that need the optional Sigma extras live in `tests/sigma` and run only when that path is given explicitly, as the Windows-only `sigma-extra` CI job does after installing the extras (see [experimental Sigma design](docs/experimental-sigma.md)):
+
+```shell
+python -m pytest tests/sigma
+```
+
 ## License
 
 GNU General Public License version 2 only. See [LICENSE](LICENSE).

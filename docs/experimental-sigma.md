@@ -162,7 +162,7 @@ redistributed in this repository. It is checked against the blob hash
 before processing.
 
 The companion compiled Zircolite JSON rule in
-`tests/fixtures/sigma/security_4625_join.json` is deliberately a generic
+`tests/sigma/fixtures/security_4625_join.json` is deliberately a generic
 EventID=4625 predicate. It proves the real EVTX-to-Wazuh JSON extraction,
 Zircolite event match, deterministic identity join, and generated pytest
 parameter path. It **does not** prove an ATT&CK technique occurred or

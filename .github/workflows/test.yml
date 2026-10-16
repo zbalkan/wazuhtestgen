@@ -36,6 +36,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - run: python -m pip install --upgrade pip
       - run: python -m pip install -e ".[test]"
+      # Core tests only; tests/sigma needs the optional extras (sigma-extra job).
       - run: python -m pytest -v
       - run: wazuhtestgen --help
       - run: python -m wazuhtestgen --help
@@ -55,21 +56,20 @@ jobs:
       - run: python -m zircolite --help
       - run: python -m zircolite --pipeline-list
       - run: python -c "import zircolite, wazuhevtx; print(zircolite.__version__)"
-      - run: python -m pytest tests/test_sigma.py -v
       - run: wazuhtestgen sigma --help
       - run: python -m pip install build twine
       - run: python -m build
       - run: python -m twine check --strict dist/*
-      # Real Windows EVTX regression: pin and hash-verify CC0 and Atomic-EVTX
-      # attack/benign fixtures. No external EVTX binaries are vendored.
+      # Real Windows EVTX regression in tests/sigma pins and hash-verifies CC0
+      # and Atomic-EVTX attack/benign fixtures. No EVTX binaries are vendored.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: wagga40/Zircolite
           ref: 2557ed1672e9f0281fcb2937bf38dd49cbc52d8e
           path: .zircolite-upstream
           persist-credentials: false
-      - name: Real EVTX to Sigma atomic join
-        run: python -m pytest tests/test_sigma_real_evtx.py tests/test_sigma_atomic_evtx_corpus.py -v
+      - name: Sigma tests, including real EVTX to Sigma atomic join
+        run: python -m pytest tests/sigma -v
         env:
           SIGMA_REAL_EVTX: "1"
           SIGMA_ZIRCOLITE_CONFIG: ${{ github.workspace }}/.zircolite-upstream/config/config.yaml

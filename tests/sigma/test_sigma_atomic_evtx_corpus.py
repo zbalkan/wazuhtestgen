@@ -39,7 +39,7 @@ SAMPLES = {
         "dd2e8a7a67158890d06a457f78ac4a240632fe0e",
     ),
 }
-FIXTURES = Path(__file__).resolve().parent / "fixtures/sigma"
+FIXTURES = Path(__file__).resolve().parent / "fixtures"
 
 
 def _get_sample(name: str, destination: Path) -> Path:

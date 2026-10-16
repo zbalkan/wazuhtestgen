@@ -292,7 +292,7 @@ def test_sigma_is_public_cli_category() -> None:
 
 
 def test_experimental_sigma_package_policy() -> None:
-    root = Path(__file__).resolve().parents[1]
+    root = Path(__file__).resolve().parents[2]
     overrides = (
         (root / "requirements" / "sigma-overrides.txt")
         .read_text(encoding="utf-8")
