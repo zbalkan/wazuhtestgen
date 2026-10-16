@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 from __future__ import annotations
 
 import logging
@@ -13,9 +11,10 @@ from .naming import claim_unique_name, identifier
 ENCODING: Final[str] = "utf-8"
 PLACEHOLDER_LOG: Final[str] = "TODO: provide a matching log here"
 
+logger = logging.getLogger(__name__)
+
 
 class RuleConverter:
-
     def convert(self, input_directory: str, output_directory: str) -> None:
         output_names: dict[str, str] = {}
 
@@ -24,7 +23,7 @@ class RuleConverter:
                 file_path = pathlib.Path(root, filename)
 
                 rel_path = str(file_path.relative_to(input_directory))
-                logging.info("Processing rule file: %s", rel_path)
+                logger.info("Processing rule file: %s", rel_path)
 
                 rules = self.__collect_rules_from_file(file_path)
                 test_code = self.__generate_pytest_code(rules)
@@ -45,18 +44,16 @@ class RuleConverter:
 
                 print(f"Test file '{test_file_path}' generated successfully.")
 
-    def __collect_rules_from_file(self, rule_file: pathlib.Path) -> list[dict[str, Any]]:
+    def __collect_rules_from_file(
+        self, rule_file: pathlib.Path
+    ) -> list[dict[str, Any]]:
         text = rule_file.read_text(encoding=ENCODING)
         root = ET.fromstring(f"<root>{text}</root>")
         rules: list[dict[str, Any]] = []
 
         def recurse(element: ET.Element, inherited: list[str]) -> None:
             if element.tag == "group" and element.get("name"):
-                names = [
-                    group
-                    for group in element.get("name", "").split(",")
-                    if group
-                ]
+                names = [group for group in element.get("name", "").split(",") if group]
                 inherited = inherited + names
 
             if element.tag == "rule":
@@ -131,9 +128,7 @@ class RuleConverter:
                 f"    assert response.rule_level == "
                 f"{int(level) if level is not None else None}"
             )
-            lines.append(
-                f"    assert response.rule_description == {description!r}"
-            )
+            lines.append(f"    assert response.rule_description == {description!r}")
             for group in groups:
                 lines.append(f"    assert {group!r} in response.rule_groups")
             lines.extend(["", ""])

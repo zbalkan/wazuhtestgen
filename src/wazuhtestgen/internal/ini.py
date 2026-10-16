@@ -1,12 +1,9 @@
-#!/usr/bin/env python3
-
 from __future__ import annotations
 
 import os
 
 from .iniParser import IniParser, TestCase
 from .naming import identifier
-
 
 _EXCLUDED_INI_FILES = {"user.ini"}
 _EXCLUDED_INI_CASES = {
@@ -39,7 +36,6 @@ def _python_logs_literal(values: tuple[str, ...]) -> str:
 
 
 class IniConverter:
-
     header_template = """\
 #!/usr/bin/env python3
 
@@ -206,9 +202,7 @@ def test_rule_does_not_match_multiple_logs(
         generated = self.header_template.format(
             ini_file_name=os.path.basename(wazuh_ini_test),
             multiple_import=(
-                ", send_multiple_logs"
-                if positive_multiple or negative_multiple
-                else ""
+                ", send_multiple_logs" if positive_multiple or negative_multiple else ""
             ),
         )
 

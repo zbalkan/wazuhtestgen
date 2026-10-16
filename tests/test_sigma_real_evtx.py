@@ -6,6 +6,7 @@ blob SHA to prevent a moving public corpus from changing CI expectations.
 Only the Windows Sigma integration job sets SIGMA_REAL_EVTX=1. Ordinary
 cross-platform tests remain offline and do not need native EVTX parsers.
 """
+
 from __future__ import annotations
 
 import ast
@@ -59,13 +60,16 @@ def test_real_evtx_generates_atomic_sigma_cases(tmp_path: pathlib.Path) -> None:
         "fixtures/sigma/security_4625_join.json"
     )
     SigmaConverter(
-        EvtxToJson(), ruleset=str(ruleset), config=config_file,
+        EvtxToJson(),
+        ruleset=str(ruleset),
+        config=config_file,
     ).convert(str(inputs), str(outputs))
     generated = (outputs / "test_sigma_security.py").read_text(encoding="utf-8")
     tree = ast.parse(generated)
 
     test_functions = [
-        node for node in tree.body
+        node
+        for node in tree.body
         if isinstance(node, ast.FunctionDef) and node.name == "test_sigma_atomic"
     ]
     assert len(test_functions) == 1, (

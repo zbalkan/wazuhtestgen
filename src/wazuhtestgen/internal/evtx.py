@@ -7,9 +7,10 @@ import platform
 
 from .naming import claim_unique_name, identifier
 
+logger = logging.getLogger(__name__)
+
 
 class EvtxConverter:
-
     def __init__(self) -> None:
         if platform.system() != "Windows":
             raise RuntimeError("EVTX parsing works only on Windows platforms.")
@@ -41,7 +42,7 @@ class EvtxConverter:
                 output_names,
                 kind="EVTX output module",
             )
-            logging.info(
+            logger.info(
                 "Generating EVTX pytest module for directory: %s",
                 directory_name,
             )
@@ -52,7 +53,7 @@ class EvtxConverter:
             for filename in evtx_files:
                 file_path = pathlib.Path(root, filename)
                 rel_path = str(file_path.relative_to(input_directory))
-                logging.info("Processing EVTX file: %s", rel_path)
+                logger.info("Processing EVTX file: %s", rel_path)
 
                 function_name = claim_unique_name(
                     identifier(
@@ -65,10 +66,7 @@ class EvtxConverter:
                 )
 
                 json_logs = list(self.converter.to_json(file_path))
-                formatted_logs = "\n".join(
-                    f"        {log!r},"
-                    for log in json_logs
-                )
+                formatted_logs = "\n".join(f"        {log!r}," for log in json_logs)
 
                 test_functions.append(
                     f"""\

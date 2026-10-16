@@ -5,6 +5,7 @@ structure. They do NOT determine whether an Atomic Red Team technique actually
 executed or whether a benign event should trigger a specific security rule.
 The repository's root does not declare a license, so no EVTX bytes are vendored.
 """
+
 from __future__ import annotations
 
 import ast
@@ -17,15 +18,16 @@ from urllib.request import urlopen
 import pytest
 
 from wazuhtestgen.internal.sigma import (
-    SigmaConverter, correlate, run_zircolite,
+    SigmaConverter,
+    correlate,
+    run_zircolite,
 )
 
 REPO = "arniki/atomic-evtx"
 REVISION = "8de5fa8f158b4d72d1e3c6f07053162c90ee6238"
 SAMPLES = {
     "attack_sysmon": (
-        "ttp_evtx/T1059.003-1/"
-        "T1059.003-1_Microsoft-Windows-Sysmon_Operational.evtx",
+        "ttp_evtx/T1059.003-1/T1059.003-1_Microsoft-Windows-Sysmon_Operational.evtx",
         "43db42f98cccf6d387078b710990554a242b5a3b",
     ),
     "benign_powershell": (
@@ -73,13 +75,16 @@ def test_attack_sysmon_evtx_generates_parametrized_atomic_case(tmp_path: Path) -
     output = tmp_path / "output"
     ruleset = FIXTURES / "atomic_evtx_sysmon_join.json"
     SigmaConverter(
-        EvtxToJson(), ruleset=str(ruleset), config=_mapping_config(),
+        EvtxToJson(),
+        ruleset=str(ruleset),
+        config=_mapping_config(),
     ).convert(str(source.parent), str(output))
 
     generated = (output / "test_sigma_sysmon.py").read_text(encoding="utf-8")
     tree = ast.parse(generated)
     test_functions = [
-        node for node in tree.body
+        node
+        for node in tree.body
         if isinstance(node, ast.FunctionDef) and node.name == "test_sigma_atomic"
     ]
     assert len(test_functions) == 1, (
@@ -106,7 +111,8 @@ def test_benign_powershell_evtx_parses_and_joins_without_attack_claim(
     assert logs, "Benign EVTX must yield real Wazuh-compatible events"
 
     results = run_zircolite(
-        source, ruleset=str(FIXTURES / "atomic_evtx_benign_join.json"),
+        source,
+        ruleset=str(FIXTURES / "atomic_evtx_benign_join.json"),
         config=_mapping_config(),
     )
     matched, counts = correlate(logs, results, source)
@@ -126,7 +132,8 @@ def test_benign_powershell_evtx_parses_and_joins_without_attack_claim(
     reason="Real Atomic-EVTX corpus tests require explicit Windows CI opt-in",
 )
 def test_same_powershell_predicate_matches_attack_but_not_benign(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Same provider and same Sigma SQL against two independent EVTX files.
 
@@ -134,15 +141,18 @@ def test_same_powershell_predicate_matches_attack_but_not_benign(
     general Sigma rule and does not establish benign behavioral ground truth.
     """
     from wazuhevtx.evtx2json import EvtxToJson
+
     from wazuhtestgen.internal import sigma as sigma_module
 
     input_dir = tmp_path / "input"
     output_dir = tmp_path / "output"
     attack = _get_sample(
-        "attack_powershell", input_dir / "T1560-1_Windows PowerShell.evtx",
+        "attack_powershell",
+        input_dir / "T1560-1_Windows PowerShell.evtx",
     )
     benign = _get_sample(
-        "benign_powershell", input_dir / "powershell_820.evtx",
+        "benign_powershell",
+        input_dir / "powershell_820.evtx",
     )
 
     captured: dict[str, list[dict]] = {}
@@ -164,8 +174,7 @@ def test_same_powershell_predicate_matches_attack_but_not_benign(
     negative = captured[benign.name]
     rule_id = "21ad178e-7626-4be9-8dbe-7eeb1e93ca2d"
     assert any(
-        result.get("id") == rule_id and result.get("matches")
-        for result in positive
+        result.get("id") == rule_id and result.get("matches") for result in positive
     ), f"Expected an atomic PowerShell command witness, got {positive!r}"
     assert not negative, (
         "The same command predicate must not match the independent benign "
@@ -175,9 +184,9 @@ def test_same_powershell_predicate_matches_attack_but_not_benign(
     generated_positive = (
         output_dir / "test_sigma_t1560_1_windows_powershell.py"
     ).read_text(encoding="utf-8")
-    generated_benign = (
-        output_dir / "test_sigma_powershell_820.py"
-    ).read_text(encoding="utf-8")
+    generated_benign = (output_dir / "test_sigma_powershell_820.py").read_text(
+        encoding="utf-8"
+    )
     ast.parse(generated_positive)
     ast.parse(generated_benign)
     assert generated_positive.count("pytest.param(") >= 1

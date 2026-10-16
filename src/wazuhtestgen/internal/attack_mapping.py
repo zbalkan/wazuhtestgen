@@ -7,6 +7,7 @@ Keep this table intentionally small. Add pairs only after validating the
 historical technique relationship; do not derive mappings from names or
 implicitly truncate subtechniques. Every other ID passes through unchanged.
 """
+
 from __future__ import annotations
 
 # No verified exceptions registered yet.

@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 from __future__ import annotations
 
 import argparse
@@ -7,12 +5,13 @@ import logging
 import os
 import platform
 import sys
+from types import TracebackType
 from typing import Final
 
 from .internal.evtx import EvtxConverter
-from .internal.sigma import SigmaConverter
 from .internal.ini import IniConverter
 from .internal.rule import RuleConverter
+from .internal.sigma import SigmaConverter
 
 APP_NAME: Final[str] = "wazuhtestgen"
 APP_VERSION: Final[str] = "0.4.1"
@@ -22,10 +21,14 @@ DESCRIPTION: Final[str] = (
 )
 ENCODING: Final[str] = "utf-8"
 
+logger = logging.getLogger(__name__)
+
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=DESCRIPTION)
-    parser.add_argument("--debug", "-d", action="store_true", help="Enable debug logging.")
+    parser.add_argument(
+        "--debug", "-d", action="store_true", help="Enable debug logging."
+    )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     for command, help_text in (
@@ -36,24 +39,32 @@ def _build_parser() -> argparse.ArgumentParser:
     ):
         subparser = subparsers.add_parser(command, help=help_text)
         subparser.add_argument(
-            "--input_dir", "-i", required=True,
+            "--input_dir",
+            "-i",
+            required=True,
             help="Directory where input files are located.",
         )
         subparser.add_argument(
-            "--output_dir", "-o", required=True,
+            "--output_dir",
+            "-o",
+            required=True,
             help="Directory where generated Python tests will be saved.",
         )
         if command == "sigma":
             subparser.add_argument(
-                "--ruleset", required=True,
+                "--ruleset",
+                required=True,
                 help="Sigma YAML rules or a compiled Sigma backend ruleset.",
             )
             subparser.add_argument(
-                "--mapping-config", required=True,
+                "--mapping-config",
+                required=True,
                 help="Sigma backend field mappings file (config.yaml for Zircolite).",
             )
             subparser.add_argument(
-                "--pipeline", action="append", default=[],
+                "--pipeline",
+                action="append",
+                default=[],
                 help="Sigma processing pipeline for native YAML rules (repeatable).",
             )
     return parser
@@ -76,8 +87,8 @@ def main(args: argparse.Namespace | None = None) -> None:
     if args is None:
         args = _parse_args()
 
-    logging.info("Starting %s %s", APP_NAME, APP_VERSION)
-    logging.info(DESCRIPTION)
+    logger.info("Starting %s %s", APP_NAME, APP_VERSION)
+    logger.info(DESCRIPTION)
 
     input_directory = args.input_dir
     output_directory = args.output_dir
@@ -99,7 +110,7 @@ def main(args: argparse.Namespace | None = None) -> None:
             raise FileNotFoundError(f"No INI files found in {input_directory}")
 
         for wazuh_test_ini in wazuh_test_inis:
-            logging.info("Processing INI file: %s", wazuh_test_ini)
+            logger.info("Processing INI file: %s", wazuh_test_ini)
             ini_converter.convert(
                 os.path.join(input_directory, wazuh_test_ini),
                 output_directory,
@@ -125,7 +136,7 @@ def run() -> int:
         main(args)
     except KeyboardInterrupt:
         print("Cancelled by user.")
-        logging.info("Cancelled by user.")
+        logger.info("Cancelled by user.")
         return 130
     except SystemExit as ex:
         return ex.code if isinstance(ex.code, int) else 1
@@ -133,21 +144,25 @@ def run() -> int:
         print("ERROR: " + str(ex), file=sys.stderr)
         exception_handler(type(ex), ex, ex.__traceback__)
         return 2
-    except Exception as ex:
+    except Exception as ex:  # noqa: BLE001 - top-level CLI boundary
         print("ERROR: " + str(ex), file=sys.stderr)
         exception_handler(type(ex), ex, ex.__traceback__)
         return 1
     return 0
 
 
-def exception_handler(exc_type, exc_value, exc_traceback) -> None:
+def exception_handler(
+    exc_type: type[BaseException],
+    exc_value: BaseException,
+    exc_traceback: TracebackType | None,
+) -> None:
     if logging.root.level == logging.DEBUG:
-        logging.error(
+        logger.error(
             "Unhandled exception",
             exc_info=(exc_type, exc_value, exc_traceback),
         )
     else:
-        logging.error("(%s): %s", exc_type.__name__, exc_value)
+        logger.error("(%s): %s", exc_type.__name__, exc_value)
 
 
 def get_log_path() -> str:
@@ -160,7 +175,10 @@ def get_log_path() -> str:
     if sys.platform == "darwin":
         return os.path.join(
             os.path.expanduser("~"),
-            "Library", "Logs", APP_NAME, f"{APP_NAME}.log",
+            "Library",
+            "Logs",
+            APP_NAME,
+            f"{APP_NAME}.log",
         )
 
     base = os.environ.get("XDG_STATE_HOME")

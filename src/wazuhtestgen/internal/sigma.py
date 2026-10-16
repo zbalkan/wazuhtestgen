@@ -4,6 +4,7 @@ The optional Zircolite >=4.5 package requires Python >=3.11. Run its module
 entry point in a separate process to isolate Zircolite's application-level
 state and avoid depending on private internal APIs.
 """
+
 from __future__ import annotations
 
 import importlib.util
@@ -15,24 +16,31 @@ import subprocess
 import sys
 import tempfile
 from collections import defaultdict
-from typing import Any, Iterable
+from collections.abc import Iterable
+from typing import Any
 
 from .attack_mapping import map_attack_id
 from .naming import identifier
 
-TECHNIQUE = re.compile(r"^(?:attack[.:])?(t\d{4}(?:\.\d{3})?)$", re.I)
+logger = logging.getLogger(__name__)
+
+TECHNIQUE = re.compile(r"^(?:attack[.:])?(t\d{4}(?:\.\d{3})?)$", re.IGNORECASE)
 # Proposed minimum Wazuh alert levels, not official Sigma equivalences.
 SIGMA_MIN_LEVEL = {
-    "informational": 3, "info": 3,
+    "informational": 3,
+    "info": 3,
     "low": 5,
-    "medium": 7, "med": 7,
+    "medium": 7,
+    "med": 7,
     "high": 10,
-    "critical": 13, "crit": 13,
+    "critical": 13,
+    "crit": 13,
 }
 
 
 def map_attack_tags(value: Any) -> tuple[str, ...]:
     """Normalize Sigma ATT&CK technique IDs, then apply explicit exceptions."""
+    items: Iterable[Any]
     if isinstance(value, str):
         items = re.split(r"[,;\s|¦]+", value.strip("[]"))
     elif isinstance(value, (list, tuple, set)):
@@ -51,28 +59,42 @@ def event_identity(value: dict[str, Any]) -> tuple[str, str, str, str] | None:
     system = value.get("win", {}).get("system", {})
     if not isinstance(system, dict):
         return None
-    fields = tuple(system.get(field) for field in
-                   ("computer", "channel", "eventRecordID", "eventID"))
+    fields = tuple(
+        system.get(field)
+        for field in ("computer", "channel", "eventRecordID", "eventID")
+    )
     if any(field is None or str(field).strip() == "" for field in fields):
         return None
-    return (str(fields[0]).casefold(), str(fields[1]).casefold(),
-            str(fields[2]), str(fields[3]))
+    return (
+        str(fields[0]).casefold(),
+        str(fields[1]).casefold(),
+        str(fields[2]),
+        str(fields[3]),
+    )
 
 
 def matched_event_identity(event: dict[str, Any]) -> tuple[str, str, str, str] | None:
     """Identity of a *flattened* Zircolite event (not a correlation alert)."""
-    fields = tuple(event.get(field) for field in
-                   ("Computer", "Channel", "EventRecordID", "EventID"))
+    fields = tuple(
+        event.get(field)
+        for field in ("Computer", "Channel", "EventRecordID", "EventID")
+    )
     if any(field is None or str(field).strip() == "" for field in fields):
         return None
-    return (str(fields[0]).casefold(), str(fields[1]).casefold(),
-            str(fields[2]), str(fields[3]))
+    return (
+        str(fields[0]).casefold(),
+        str(fields[1]).casefold(),
+        str(fields[2]),
+        str(fields[3]),
+    )
 
 
-def run_zircolite(evtx: pathlib.Path,
-                  ruleset: str | None = None,
-                  config: str | None = None,
-                  pipelines: tuple[str, ...] = ()) -> list[dict[str, Any]]:
+def run_zircolite(
+    evtx: pathlib.Path,
+    ruleset: str | None = None,
+    config: str | None = None,
+    pipelines: tuple[str, ...] = (),
+) -> list[dict[str, Any]]:
     if sys.version_info < (3, 11):
         raise RuntimeError(
             "The experimental Sigma mode requires Python >=3.11. "
@@ -97,10 +119,19 @@ def run_zircolite(evtx: pathlib.Path,
     with tempfile.TemporaryDirectory(prefix="wazuhtestgen-zircolite-") as temp:
         output = pathlib.Path(temp) / "detections.json"
         command = [
-            sys.executable, "-m", "zircolite", "--events", str(evtx),
-            "--outfile", str(output), "--quiet", "--no-parallel",
-            "--ruleset", str(pathlib.Path(ruleset).resolve()),
-            "--config", str(pathlib.Path(config).resolve()),
+            sys.executable,
+            "-m",
+            "zircolite",
+            "--events",
+            str(evtx),
+            "--outfile",
+            str(output),
+            "--quiet",
+            "--no-parallel",
+            "--ruleset",
+            str(pathlib.Path(ruleset).resolve()),
+            "--config",
+            str(pathlib.Path(config).resolve()),
         ]
         for pipeline in pipelines:
             command.extend(("--pipeline", pipeline))
@@ -109,8 +140,10 @@ def run_zircolite(evtx: pathlib.Path,
         # text=True creates reader threads which can crash while decoding and
         # conceal the actual subprocess error or output.
         result = subprocess.run(
-            command, capture_output=True,
-            check=False, timeout=900,
+            command,
+            capture_output=True,
+            check=False,
+            timeout=900,
         )
         if result.returncode != 0:
             diagnostics = (result.stderr or result.stdout).decode(
@@ -176,10 +209,13 @@ def correlate(
 class SigmaConverter:
     """Generate runnable best-effort, atomic pytest cases from EVTX and Sigma."""
 
-    def __init__(self, evtx_converter: Any,
-                 ruleset: str | None = None,
-                 config: str | None = None,
-                 pipelines: tuple[str, ...] = ()) -> None:
+    def __init__(
+        self,
+        evtx_converter: Any,
+        ruleset: str | None = None,
+        config: str | None = None,
+        pipelines: tuple[str, ...] = (),
+    ) -> None:
         self.evtx_converter = evtx_converter
         self.ruleset = ruleset
         self.config = config
@@ -215,8 +251,9 @@ class SigmaConverter:
                 f"unresolved={counts['unresolved']}, duplicates={counts['duplicates']}"
             )
             if any(counts.values()):
-                logging.warning("%s: skipped/ignored Sigma backend results: %s",
-                                evtx, counts)
+                logger.warning(
+                    "%s: skipped/ignored Sigma backend results: %s", evtx, counts
+                )
 
             parameters: list[str] = []
             for ordinal, (position, detection) in enumerate(matches):
@@ -265,7 +302,8 @@ class SigmaConverter:
 
             out_name = identifier(
                 str(evtx.relative_to(source).with_suffix(""))
-                .replace("\\", "_").replace("/", "_")
+                .replace("\\", "_")
+                .replace("/", "_")
             )
             output = destination / f"test_sigma_{out_name}.py"
             if output.exists():
@@ -277,6 +315,6 @@ class SigmaConverter:
                 "pytestmark = pytest.mark.wazuh_logtest\n\n"
                 f"# Correlations deferred: {counts['correlations']}\n"
                 f"# Atomic events unresolved: {counts['unresolved']}\n"
-                f"# Duplicate matches ignored: {counts['duplicates']}\n\n"
-                + function, encoding="utf-8",
+                f"# Duplicate matches ignored: {counts['duplicates']}\n\n" + function,
+                encoding="utf-8",
             )

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Literal, Optional
+from typing import Literal
 
 
 @dataclass(frozen=True)
@@ -26,7 +26,6 @@ class TestCase:
 
 
 class IniParser:
-
     def parse(self, path: str) -> list[TestCase]:
         sections = self.__split(path)
         test_cases: list[TestCase] = []
@@ -37,23 +36,21 @@ class IniParser:
 
         return test_cases
 
-    def __read(self, lines: list[str]) -> Optional[list[TestCase]]:
+    def __read(self, lines: list[str]) -> list[TestCase] | None:
         header = lines[0].replace("[", "").replace("]", "").lower()
         log_groups: dict[
             str,
             tuple[Literal["pass", "fail"], list[str]],
         ] = {}
-        rule: Optional[str] = None
-        alert: Optional[int] = None
-        decoder: Optional[str] = None
+        rule: str | None = None
+        alert: int | None = None
+        decoder: str | None = None
 
         pairs: list[tuple[str, str]] = []
         unkeyed_lines: list[str] = []
-        assignment_pattern = re.compile(
-            r"^[A-Za-z_][A-Za-z0-9_. -]*\s*="
-        )
+        assignment_pattern = re.compile(r"^[A-Za-z_][A-Za-z0-9_. -]*\s*=")
         for line in lines[1:]:
-            if not line or line.startswith("#") or line.startswith(";"):
+            if not line or line.startswith(("#", ";")):
                 continue
 
             if not assignment_pattern.match(line):
@@ -62,15 +59,13 @@ class IniParser:
 
             delim = line.index("=")
             key = line[:delim].strip()
-            value = line[delim + 1:].strip()
+            value = line[delim + 1 :].strip()
             pairs.append((key, value))
 
         if unkeyed_lines:
             keyed_logs = any(key.startswith("log") for key, _ in pairs)
             if len(unkeyed_lines) != 1 or keyed_logs:
-                raise ValueError(
-                    f"Invalid unkeyed log data under {header}."
-                )
+                raise ValueError(f"Invalid unkeyed log data under {header}.")
             pairs.insert(0, ("log 1 pass", unkeyed_lines[0]))
 
         if not pairs:
@@ -85,7 +80,9 @@ class IniParser:
                         "Expected 'log <number> pass' or 'log <number> fail'."
                     )
 
-                condition: Literal["pass", "fail"] = parts[2]
+                condition: Literal["pass", "fail"] = (
+                    "pass" if parts[2] == "pass" else "fail"
+                )
                 if key in log_groups:
                     log_groups[key][1].append(value)
                 else:
@@ -115,9 +112,7 @@ class IniParser:
             if value is None
         ]
         if missing:
-            raise ValueError(
-                f"Missing {', '.join(missing)} under {header}."
-            )
+            raise ValueError(f"Missing {', '.join(missing)} under {header}.")
 
         assert rule is not None
         assert alert is not None

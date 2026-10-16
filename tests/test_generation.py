@@ -10,7 +10,8 @@ import xml.etree.ElementTree as ET
 
 import pytest
 
-from wazuhtestgen.generator import main as generator_main, run as generator_run
+from wazuhtestgen.generator import main as generator_main
+from wazuhtestgen.generator import run as generator_run
 from wazuhtestgen.internal.evtx import EvtxConverter
 from wazuhtestgen.internal.ini import IniConverter, _python_log_literal
 from wazuhtestgen.internal.iniParser import IniParser
@@ -158,11 +159,7 @@ def test_ini_parser_accepts_single_legacy_unkeyed_log(tmp_path) -> None:
         'result: "notapplicable", references: "https://example.test/?a=b".'
     )
     source.write_text(
-        "[Legacy]\n"
-        f"{log}\n"
-        "rule = 81523\n"
-        "alert = 0\n"
-        "decoder = oscap\n",
+        f"[Legacy]\n{log}\nrule = 81523\nalert = 0\ndecoder = oscap\n",
         encoding="utf-8",
     )
 
@@ -239,9 +236,7 @@ decoder = test
 
     IniConverter().convert(str(source), str(output))
 
-    generated = (output / "test_frequency_rules.py").read_text(
-        encoding="utf-8"
-    )
+    generated = (output / "test_frequency_rules.py").read_text(encoding="utf-8")
     ast.parse(generated)
 
     assert (
@@ -343,9 +338,7 @@ decoder = su
         encoding="utf-8",
     )
     IniConverter().convert(str(source), str(output))
-    generated = (output / "test_negative_rules.py").read_text(
-        encoding="utf-8"
-    )
+    generated = (output / "test_negative_rules.py").read_text(encoding="utf-8")
 
     response_box = {
         "response": types.SimpleNamespace(
@@ -361,7 +354,7 @@ decoder = su
     monkeypatch.setitem(sys.modules, "wazuhtester", fake_wazuhtester)
 
     namespace: dict[str, object] = {}
-    exec(compile(generated, "generated_test.py", "exec"), namespace)
+    exec(compile(generated, "generated_test.py", "exec"), namespace)  # noqa: S102
     test_function = namespace["test_rule_does_not_match"]
 
     with pytest.raises(AssertionError):
@@ -439,7 +432,9 @@ def test_rule_converter_rejects_output_name_collisions(tmp_path) -> None:
     output.mkdir()
     rule = '<rule id="100001" level="7"><description>x</description></rule>'
     (source / "foo-bar.xml").write_text(rule, encoding="utf-8")
-    (source / "foo_bar.xml").write_text(rule.replace("100001", "100002"), encoding="utf-8")
+    (source / "foo_bar.xml").write_text(
+        rule.replace("100001", "100002"), encoding="utf-8"
+    )
 
     with pytest.raises(ValueError, match="rule output module name collision"):
         RuleConverter().convert(str(source), str(output))
@@ -493,7 +488,10 @@ def test_evtx_converter_generates_root_pytest_template(tmp_path) -> None:
     assert "import unittest" not in generated
     assert "import pytest" in generated
     assert "from wazuhtester import send_multiple_logs" in generated
-    assert "@pytest.mark.skip(reason='Define expected detections for scenario.evtx')" in generated
+    assert (
+        "@pytest.mark.skip(reason='Define expected detections for scenario.evtx')"
+        in generated
+    )
     assert "def test_scenario() -> None:" in generated
     assert "T1021.001" not in generated
 
