@@ -34,6 +34,15 @@ def wazuh_event(record: int, *, computer: str = "SERVER01") -> str:
     )
 
 
+@pytest.fixture
+def no_backend_check(monkeypatch):
+    """Converter tests fake run_zircolite, so skip the provider preflight."""
+    monkeypatch.setattr(
+        "wazuhtestgen.internal.sigma.check_backend",
+        lambda ruleset, config: (ruleset, config),
+    )
+
+
 def zircolite_event(record: int, *, computer: str = "SERVER01") -> dict:
     return {
         "Computer": computer,
@@ -106,7 +115,7 @@ def test_level_and_attack_id_mapping() -> None:
 
 
 def test_generates_runnable_parametrized_atomic_templates(
-    tmp_path, monkeypatch
+    tmp_path, monkeypatch, no_backend_check
 ) -> None:
     input_dir = tmp_path / "input"
     output_dir = tmp_path / "output"
@@ -124,7 +133,7 @@ def test_generates_runnable_parametrized_atomic_templates(
     }
     monkeypatch.setattr(
         "wazuhtestgen.internal.sigma.run_zircolite",
-        lambda *_args: [detection(1), detection(2, "medium"), correlation],
+        lambda *_args, **_kwargs: [detection(1), detection(2, "medium"), correlation],
     )
     SigmaConverter(FakeEvtxConverter()).convert(str(input_dir), str(output_dir))
     code = (output_dir / "test_sigma_security.py").read_text(encoding="utf-8")
@@ -143,7 +152,7 @@ def test_generates_runnable_parametrized_atomic_templates(
 
 
 def test_no_atomic_results_generate_no_parametrized_tests(
-    tmp_path, monkeypatch
+    tmp_path, monkeypatch, no_backend_check
 ) -> None:
     input_dir = tmp_path / "input"
     output_dir = tmp_path / "output"
@@ -156,7 +165,7 @@ def test_no_atomic_results_generate_no_parametrized_tests(
 
     monkeypatch.setattr(
         "wazuhtestgen.internal.sigma.run_zircolite",
-        lambda *_args: [{"result_type": "correlation", "matches": []}],
+        lambda *_args, **_kwargs: [{"result_type": "correlation", "matches": []}],
     )
     SigmaConverter(FakeEvtxConverter()).convert(str(input_dir), str(output_dir))
     code = (output_dir / "test_sigma_security.py").read_text(encoding="utf-8")
@@ -337,6 +346,7 @@ def test_zircolite_non_utf8_failure_output_remains_reportable(
 def test_unjoinable_atomic_matches_are_not_a_successful_generation(
     tmp_path,
     monkeypatch,
+    no_backend_check,
 ) -> None:
     inp = tmp_path / "input"
     out = tmp_path / "output"
@@ -349,7 +359,7 @@ def test_unjoinable_atomic_matches_are_not_a_successful_generation(
 
     monkeypatch.setattr(
         "wazuhtestgen.internal.sigma.run_zircolite",
-        lambda *_args: [detection(999)],
+        lambda *_args, **_kwargs: [detection(999)],
     )
     with pytest.raises(RuntimeError, match="none joined uniquely"):
         SigmaConverter(FakeConverter()).convert(str(inp), str(out))
@@ -377,3 +387,174 @@ def test_native_sigma_pipeline_argument_is_repeatable() -> None:
         ]
     )
     assert args.pipeline == ["sysmon", "windows-logsources"]
+
+
+def test_failure_in_any_file_writes_no_partial_output(
+    tmp_path,
+    monkeypatch,
+    no_backend_check,
+) -> None:
+    inp = tmp_path / "input"
+    out = tmp_path / "output"
+    inp.mkdir()
+    (inp / "a.evtx").write_bytes(b"fixture")
+    (inp / "b.evtx").write_bytes(b"fixture")
+
+    class FakeConverter:
+        def to_json(self, _path):
+            return iter([wazuh_event(1)])
+
+    monkeypatch.setattr(
+        "wazuhtestgen.internal.sigma.run_zircolite",
+        lambda evtx, *_args, **_kwargs: [
+            detection(1 if evtx.name == "a.evtx" else 999)
+        ],
+    )
+    with pytest.raises(RuntimeError, match="No test files were written"):
+        SigmaConverter(FakeConverter()).convert(str(inp), str(out))
+    assert not out.exists() or list(out.iterdir()) == []
+
+
+def test_existing_output_is_rejected_before_backend_runs(
+    tmp_path,
+    monkeypatch,
+    no_backend_check,
+) -> None:
+    inp = tmp_path / "input"
+    out = tmp_path / "output"
+    inp.mkdir()
+    out.mkdir()
+    (inp / "Security.evtx").write_bytes(b"fixture")
+    (out / "test_sigma_security.py").write_text("# keep\n", encoding="utf-8")
+
+    def must_not_run(*_args, **_kwargs):
+        raise AssertionError("backend ran before the overwrite check")
+
+    monkeypatch.setattr("wazuhtestgen.internal.sigma.run_zircolite", must_not_run)
+
+    class FakeConverter:
+        def to_json(self, _path):
+            raise AssertionError("EVTX parsed before the overwrite check")
+
+    with pytest.raises(FileExistsError, match="--force"):
+        SigmaConverter(FakeConverter()).convert(str(inp), str(out))
+    assert (out / "test_sigma_security.py").read_text(encoding="utf-8") == "# keep\n"
+
+
+def test_force_replaces_existing_output(
+    tmp_path,
+    monkeypatch,
+    no_backend_check,
+) -> None:
+    inp = tmp_path / "input"
+    out = tmp_path / "output"
+    inp.mkdir()
+    out.mkdir()
+    (inp / "Security.evtx").write_bytes(b"fixture")
+    (out / "test_sigma_security.py").write_text("# stale\n", encoding="utf-8")
+
+    class FakeConverter:
+        def to_json(self, _path):
+            return iter([wazuh_event(1)])
+
+    monkeypatch.setattr(
+        "wazuhtestgen.internal.sigma.run_zircolite",
+        lambda *_args, **_kwargs: [detection(1)],
+    )
+    SigmaConverter(FakeConverter(), overwrite=True).convert(str(inp), str(out))
+    code = (out / "test_sigma_security.py").read_text(encoding="utf-8")
+    assert "pytest.param(" in code
+
+
+@pytest.mark.parametrize(
+    "names",
+    [("a/b.evtx", "a_b.evtx"), ("Security.evtx", "security.EVTX")],
+)
+def test_output_name_collision_is_reported_as_collision(
+    tmp_path,
+    names,
+    no_backend_check,
+) -> None:
+    inp = tmp_path / "input"
+    for name in names:
+        path = inp / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b"fixture")
+    if len(list(inp.rglob("*.*"))) < 2:
+        pytest.skip("case-insensitive filesystem")
+
+    class FakeConverter:
+        def to_json(self, _path):
+            raise AssertionError("EVTX parsed before the collision check")
+
+    with pytest.raises(ValueError, match="name collision"):
+        SigmaConverter(FakeConverter()).convert(str(inp), str(tmp_path / "out"))
+
+
+def test_rules_without_id_are_not_merged_as_duplicates() -> None:
+    first = detection(1)
+    second = detection(1)
+    first["id"] = ""
+    del second["id"]
+    second["title"] = "Another rule"
+    matches, counts = correlate(
+        [wazuh_event(1)], [first, second], Path("Security.evtx")
+    )
+    assert len(matches) == 2
+    assert counts["duplicates"] == 0
+
+
+def test_force_is_a_sigma_cli_option() -> None:
+    from wazuhtestgen.generator import _build_parser
+
+    base = [
+        "sigma",
+        "-i",
+        "input",
+        "-o",
+        "output",
+        "--ruleset",
+        "rules.json",
+        "--mapping-config",
+        "config.yaml",
+    ]
+    assert _build_parser().parse_args(base).force is False
+    assert _build_parser().parse_args([*base, "--force"]).force is True
+
+
+def test_cli_failure_creates_no_output_directory(
+    tmp_path,
+    monkeypatch,
+    no_backend_check,
+) -> None:
+    from wazuhtestgen import generator
+
+    inp = tmp_path / "input"
+    out = tmp_path / "output"
+    inp.mkdir()
+    (inp / "Security.evtx").write_bytes(b"fixture")
+
+    class FakeEvtxConverter:
+        converter = SimpleNamespace(to_json=lambda _path: iter([wazuh_event(1)]))
+
+    monkeypatch.setattr(generator, "EvtxConverter", FakeEvtxConverter)
+    monkeypatch.setattr(
+        "wazuhtestgen.internal.sigma.run_zircolite",
+        lambda *_args, **_kwargs: [detection(999)],
+    )
+    args = generator._build_parser().parse_args(
+        [
+            "sigma",
+            "-i",
+            str(inp),
+            "-o",
+            str(out),
+            "--ruleset",
+            "rules.json",
+            "--mapping-config",
+            "config.yaml",
+        ]
+    )
+    with pytest.raises(RuntimeError, match="none joined uniquely"):
+        generator.main(args)
+    assert not out.exists()

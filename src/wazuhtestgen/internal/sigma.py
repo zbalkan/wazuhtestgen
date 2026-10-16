@@ -20,7 +20,7 @@ from collections.abc import Iterable
 from typing import Any
 
 from .attack_mapping import map_attack_id
-from .naming import identifier
+from .naming import claim_unique_name, identifier
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +73,9 @@ def event_identity(value: dict[str, Any]) -> tuple[str, str, str, str] | None:
     )
 
 
-def matched_event_identity(event: dict[str, Any]) -> tuple[str, str, str, str] | None:
+def matched_event_identity(
+    event: dict[str, Any],
+) -> tuple[str, str, str, str] | None:
     """Identity of a *flattened* Zircolite event (not a correlation alert)."""
     fields = tuple(
         event.get(field)
@@ -89,12 +91,8 @@ def matched_event_identity(event: dict[str, Any]) -> tuple[str, str, str, str] |
     )
 
 
-def run_zircolite(
-    evtx: pathlib.Path,
-    ruleset: str | None = None,
-    config: str | None = None,
-    pipelines: tuple[str, ...] = (),
-) -> list[dict[str, Any]]:
+def check_backend(ruleset: str | None, config: str | None) -> tuple[str, str]:
+    """Fail fast when the optional Zircolite provider or its assets are absent."""
     if sys.version_info < (3, 11):
         raise RuntimeError(
             "The experimental Sigma mode requires Python >=3.11. "
@@ -116,6 +114,16 @@ def run_zircolite(
         raise FileNotFoundError("Zircolite ruleset not found: " + ruleset)
     if not pathlib.Path(config).is_file():
         raise FileNotFoundError("Zircolite field-mapping config not found: " + config)
+    return ruleset, config
+
+
+def run_zircolite(
+    evtx: pathlib.Path,
+    ruleset: str | None = None,
+    config: str | None = None,
+    pipelines: tuple[str, ...] = (),
+) -> list[dict[str, Any]]:
+    ruleset, config = check_backend(ruleset, config)
     with tempfile.TemporaryDirectory(prefix="wazuhtestgen-zircolite-") as temp:
         output = pathlib.Path(temp) / "detections.json"
         command = [
@@ -177,10 +185,12 @@ def correlate(
     matched: list[tuple[int, dict[str, Any]]] = []
     counts = {"correlations": 0, "unresolved": 0, "duplicates": 0}
     seen: set[tuple[int, str]] = set()
-    for result in results:
+    for number, result in enumerate(results):
         if result.get("result_type") == "correlation":
             counts["correlations"] += 1
             continue
+        # Rules without an id must not collapse into each other.
+        rule_key = str(result.get("id") or "").strip() or f"#{number}"
         for event in result.get("matches", ()):
             if not isinstance(event, dict):
                 counts["unresolved"] += 1
@@ -192,18 +202,80 @@ def correlate(
                     counts["unresolved"] += 1
                     continue
             identity = matched_event_identity(event)
-            positions = index.get(identity, ()) if identity else ()
+            positions = index.get(identity, []) if identity else []
             if len(positions) != 1:
                 counts["unresolved"] += 1
                 continue
             position = positions[0]
-            key = (position, str(result.get("id", "")))
+            key = (position, rule_key)
             if key in seen:
                 counts["duplicates"] += 1
                 continue
             seen.add(key)
             matched.append((position, result))
     return matched, counts
+
+
+def render_module(
+    logs: list[str],
+    matches: list[tuple[int, dict[str, Any]]],
+    counts: dict[str, int],
+) -> str:
+    """Render one parametrized pytest module for the joined detections."""
+    parameters: list[str] = []
+    for ordinal, (position, detection) in enumerate(matches):
+        source_id = str(detection.get("id", "")).strip()
+        title = str(detection.get("title", "Untitled Sigma detection"))
+        level = SIGMA_MIN_LEVEL.get(
+            str(detection.get("rule_level", "")).strip().lower()
+        )
+        mitre = map_attack_tags(detection.get("tags"))
+        identity = event_identity(json.loads(logs[position]))
+        record_id = identity[2] if identity else "unknown"
+        case_id = identifier(
+            f"record_{record_id}_sigma_{source_id or title}_{ordinal}",
+            fallback="case",
+        )
+        parameters.append(
+            f"    # Sigma: {source_id.encode('unicode_escape').decode('ascii')}; "
+            f"title: {title.encode('unicode_escape').decode('ascii')}\n"
+            "    pytest.param(\n"
+            f"        {logs[position]!r},\n"
+            f"        {level!r},\n"
+            f"        {mitre!r},\n"
+            f"        id={case_id!r},\n"
+            "    ),\n"
+        )
+
+    if parameters:
+        function = (
+            "@pytest.mark.parametrize(\n"
+            "    ('log', 'expected_level', 'expected_mitre_ids'),\n"
+            "    [\n" + "".join(parameters) + "    ],\n"
+            ")\n"
+            "def test_sigma_atomic(log, expected_level, expected_mitre_ids):\n"
+            "    # Best-effort proposed expectations; edit for your ruleset.\n"
+            "    assert expected_level is not None, 'Set a minimum Wazuh alert level'\n"
+            "    assert expected_mitre_ids, 'Set an expected ATT&CK technique ID'\n"
+            "    response = send_log(log, log_format='json')\n"
+            "    assert response.status is LogtestStatus.RuleMatch\n"
+            "    assert response.alert\n"
+            "    assert response.rule_level is not None\n"
+            "    assert response.rule_level >= expected_level\n"
+            "    assert set(expected_mitre_ids) <= response.rule_mitre_ids\n"
+        )
+    else:
+        function = "# No uniquely correlated atomic detections.\n"
+
+    return (
+        "# Best-effort TDD templates: assertion failures are expected in Red.\n"
+        "import pytest\n"
+        "from wazuhtester import LogtestStatus, send_log\n\n"
+        "pytestmark = pytest.mark.wazuh_logtest\n\n"
+        f"# Correlations deferred: {counts['correlations']}\n"
+        f"# Atomic events unresolved: {counts['unresolved']}\n"
+        f"# Duplicate matches ignored: {counts['duplicates']}\n\n" + function
+    )
 
 
 class SigmaConverter:
@@ -215,23 +287,55 @@ class SigmaConverter:
         ruleset: str | None = None,
         config: str | None = None,
         pipelines: tuple[str, ...] = (),
+        *,
+        overwrite: bool = False,
     ) -> None:
         self.evtx_converter = evtx_converter
         self.ruleset = ruleset
         self.config = config
         self.pipelines = pipelines
+        self.overwrite = overwrite
+
+    def _plan_outputs(
+        self, source: pathlib.Path, destination: pathlib.Path
+    ) -> list[tuple[pathlib.Path, pathlib.Path]]:
+        """Map each EVTX file to its output, rejecting clashes before any work."""
+        planned: list[tuple[pathlib.Path, pathlib.Path]] = []
+        names: dict[str, str] = {}
+        for evtx in sorted(source.rglob("*")):
+            if not evtx.is_file() or evtx.suffix.lower() != ".evtx":
+                continue
+            relative = evtx.relative_to(source)
+            name = claim_unique_name(
+                identifier(str(relative.with_suffix(""))),
+                str(relative),
+                names,
+                kind="Sigma output module",
+            )
+            output = destination / f"test_sigma_{name}.py"
+            if output.exists() and not self.overwrite:
+                raise FileExistsError(
+                    f"Refusing to overwrite existing test: {output} "
+                    "(use --force to replace it)"
+                )
+            planned.append((evtx, output))
+        return planned
 
     def convert(self, input_directory: str, output_directory: str) -> None:
         source = pathlib.Path(input_directory)
         destination = pathlib.Path(output_directory)
-        destination.mkdir(parents=True, exist_ok=True)
+        planned = self._plan_outputs(source, destination)
+        if not planned:
+            return
+        check_backend(self.ruleset, self.config)
 
-        for evtx in sorted(source.rglob("*")):
-            if not evtx.is_file() or evtx.suffix.lower() != ".evtx":
-                continue
+        # Render everything first so a failing file leaves no partial output.
+        rendered: list[tuple[pathlib.Path, str]] = []
+        for evtx, output in planned:
             logs = list(self.evtx_converter.to_json(evtx))
-            options = {"pipelines": self.pipelines} if self.pipelines else {}
-            detections = run_zircolite(evtx, self.ruleset, self.config, **options)
+            detections = run_zircolite(
+                evtx, self.ruleset, self.config, pipelines=self.pipelines
+            )
             matches, counts = correlate(logs, detections, evtx)
             atomic_rows = sum(
                 len(result.get("matches") or ())
@@ -242,79 +346,22 @@ class SigmaConverter:
                 raise RuntimeError(
                     f"{evtx}: {atomic_rows} atomic match rows were reported by "
                     "the Sigma backend, but none joined uniquely to Wazuh "
-                    f"events (unresolved={counts['unresolved']})."
+                    f"events (unresolved={counts['unresolved']}). "
+                    "No test files were written."
                 )
             print(
                 f"Sigma {evtx.name}: events={len(logs)}, "
                 f"atomic_matches={atomic_rows}, generated={len(matches)}, "
                 f"deferred_correlations={counts['correlations']}, "
-                f"unresolved={counts['unresolved']}, duplicates={counts['duplicates']}"
+                f"unresolved={counts['unresolved']}, "
+                f"duplicates={counts['duplicates']}"
             )
             if any(counts.values()):
                 logger.warning(
                     "%s: skipped/ignored Sigma backend results: %s", evtx, counts
                 )
+            rendered.append((output, render_module(logs, matches, counts)))
 
-            parameters: list[str] = []
-            for ordinal, (position, detection) in enumerate(matches):
-                source_id = str(detection.get("id", "")).strip()
-                title = str(detection.get("title", "Untitled Sigma detection"))
-                level = SIGMA_MIN_LEVEL.get(
-                    str(detection.get("rule_level", "")).strip().lower()
-                )
-                mitre = map_attack_tags(detection.get("tags"))
-                identity = event_identity(json.loads(logs[position]))
-                record_id = identity[2] if identity else "unknown"
-                case_id = identifier(
-                    f"record_{record_id}_sigma_{source_id or title}_{ordinal}",
-                    fallback="case",
-                )
-                parameters.append(
-                    f"    # Sigma: {source_id.encode('unicode_escape').decode('ascii')}; "
-                    f"title: {title.encode('unicode_escape').decode('ascii')}\n"
-                    "    pytest.param(\n"
-                    f"        {logs[position]!r},\n"
-                    f"        {level!r},\n"
-                    f"        {mitre!r},\n"
-                    f"        id={case_id!r},\n"
-                    "    ),\n"
-                )
-
-            if parameters:
-                function = (
-                    "@pytest.mark.parametrize(\n"
-                    "    ('log', 'expected_level', 'expected_mitre_ids'),\n"
-                    "    [\n" + "".join(parameters) + "    ],\n"
-                    ")\n"
-                    "def test_sigma_atomic(log, expected_level, expected_mitre_ids):\n"
-                    "    # Best-effort proposed expectations; edit for your ruleset.\n"
-                    "    assert expected_level is not None, 'Set a minimum Wazuh alert level'\n"
-                    "    assert expected_mitre_ids, 'Set an expected ATT&CK technique ID'\n"
-                    "    response = send_log(log, log_format='json')\n"
-                    "    assert response.status is LogtestStatus.RuleMatch\n"
-                    "    assert response.alert\n"
-                    "    assert response.rule_level is not None\n"
-                    "    assert response.rule_level >= expected_level\n"
-                    "    assert set(expected_mitre_ids) <= response.rule_mitre_ids\n"
-                )
-            else:
-                function = "# No uniquely correlated atomic detections.\n"
-
-            out_name = identifier(
-                str(evtx.relative_to(source).with_suffix(""))
-                .replace("\\", "_")
-                .replace("/", "_")
-            )
-            output = destination / f"test_sigma_{out_name}.py"
-            if output.exists():
-                raise ValueError("Refusing to overwrite existing test: " + str(output))
-            output.write_text(
-                "# Best-effort TDD templates: assertion failures are expected in Red.\n"
-                "import pytest\n"
-                "from wazuhtester import LogtestStatus, send_log\n\n"
-                "pytestmark = pytest.mark.wazuh_logtest\n\n"
-                f"# Correlations deferred: {counts['correlations']}\n"
-                f"# Atomic events unresolved: {counts['unresolved']}\n"
-                f"# Duplicate matches ignored: {counts['duplicates']}\n\n" + function,
-                encoding="utf-8",
-            )
+        destination.mkdir(parents=True, exist_ok=True)
+        for output, code in rendered:
+            output.write_text(code, encoding="utf-8")

@@ -39,6 +39,7 @@ class RuleConverter:
                     f"test_{output_name}.py",
                 )
 
+                os.makedirs(output_directory, exist_ok=True)
                 with open(test_file_path, "w", encoding=ENCODING) as test_file:
                     test_file.write(test_code)
 

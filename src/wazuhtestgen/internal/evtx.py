@@ -101,6 +101,7 @@ pytestmark = pytest.mark.wazuh_logtest
                 f"test_{directory_name}.py",
             )
 
+            os.makedirs(output_directory, exist_ok=True)
             with open(test_file_path, "w", encoding="utf-8") as test_file:
                 test_file.write(test_code)
 

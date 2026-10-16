@@ -99,6 +99,12 @@ to Wazuh events causes generation to fail rather than silently creating a
 comment-only module. Zero detection findings and correlation-only output are
 reported but are not treated as detection failures.
 
+Generation is all-or-nothing. Output module names, name collisions (for example
+`a/b.evtx` and `a_b.evtx`) and existing files are checked before any EVTX file
+is parsed or Zircolite runs. Every module is rendered in memory and written
+only after all inputs succeed, so a failure writes no test modules. Existing
+`test_sigma_*.py` modules are never replaced unless `--force` is given.
+
 ## Input format
 
 The Zircolite backend returns a JSON array of rule objects. Atomic objects contain

@@ -48,7 +48,7 @@ positional arguments:
   {ini,evtx,sigma,rule}
     ini             Generate pytest tests from Wazuh INI regression tests.
     evtx            Generate editable pytest templates from EVTX files.
-    sigma           Generate executable atomic Sigma detection pytest drafts.
+    sigma           Generate Sigma-informed atomic EVTX pytest drafts (experimental).
     rule            Generate editable pytest templates from Wazuh rule XML files.
 
 options:
@@ -78,7 +78,7 @@ wazuhtestgen sigma --input_dir INPUT_DIR --output_dir OUTPUT_DIR \
   --ruleset PATH_TO_RULESET --mapping-config PATH_TO_MAPPING_CONFIG
 ```
 
-Run this in an active Python 3.11+ virtual environment from the repository checkout. EVTX/Sigma templates are generated on Windows using `wazuhevtx` and Zircolite, while the resulting pytest tests must be executed separately on Linux with `wazuhtester` and access to a Wazuh manager. The override intentionally replaces the conflicting pipeline constraints, matching Zircolite's own supported development environment. It is not a normal pip constraints file; installing the `sigma` extra alone does not install Zircolite; use the command above to install the experimental provider with the override. For native Sigma YAML, optionally add repeatable `--pipeline sysmon` / `--pipeline windows-logsources` arguments; precompiled JSON rulesets do not require this. The CLI prints generation counts and fails when reported atomic matches cannot be joined to Wazuh events. See [experimental Sigma design](docs/experimental-sigma.md) for the required Zircolite ruleset and field-mapping assets, Sigma metadata mapping, and atomic-only scope.
+Run this in an active Python 3.11+ virtual environment from the repository checkout. EVTX/Sigma templates are generated on Windows using `wazuhevtx` and Zircolite, while the resulting pytest tests must be executed separately on Linux with `wazuhtester` and access to a Wazuh manager. The override intentionally replaces the conflicting pipeline constraints, matching Zircolite's own supported development environment. It is not a normal pip constraints file; installing the `sigma` extra alone does not install Zircolite; use the command above to install the experimental provider with the override. For native Sigma YAML, optionally add repeatable `--pipeline sysmon` / `--pipeline windows-logsources` arguments; precompiled JSON rulesets do not require this. The CLI prints generation counts and fails when reported atomic matches cannot be joined to Wazuh events; in that case no test modules are written. Existing generated modules are kept unless `--force` is given. See [experimental Sigma design](docs/experimental-sigma.md) for the required Zircolite ruleset and field-mapping assets, Sigma metadata mapping, and atomic-only scope.
 
 Wazuh rules:
 

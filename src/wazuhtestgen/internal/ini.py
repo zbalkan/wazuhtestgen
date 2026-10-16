@@ -226,6 +226,7 @@ def test_rule_does_not_match_multiple_logs(
                 parameters=self._render_multiple_parameters(negative_multiple)
             )
 
+        os.makedirs(output_directory, exist_ok=True)
         with open(test_file_name, "w", encoding="utf-8") as test_file:
             test_file.write(generated)
 

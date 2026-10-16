@@ -67,6 +67,11 @@ def _build_parser() -> argparse.ArgumentParser:
                 default=[],
                 help="Sigma processing pipeline for native YAML rules (repeatable).",
             )
+            subparser.add_argument(
+                "--force",
+                action="store_true",
+                help="Replace existing generated test modules.",
+            )
     return parser
 
 
@@ -97,8 +102,6 @@ def main(args: argparse.Namespace | None = None) -> None:
         print(f"Error: Input directory '{input_directory}' not found.")
         raise SystemExit(1)
 
-    os.makedirs(output_directory, exist_ok=True)
-
     if args.command == "ini":
         ini_converter = IniConverter()
         wazuh_test_inis = [
@@ -123,6 +126,7 @@ def main(args: argparse.Namespace | None = None) -> None:
             ruleset=args.ruleset,
             config=args.mapping_config,
             pipelines=tuple(getattr(args, "pipeline", ())),
+            overwrite=getattr(args, "force", False),
         ).convert(input_directory, output_directory)
     elif args.command == "rule":
         RuleConverter().convert(input_directory, output_directory)

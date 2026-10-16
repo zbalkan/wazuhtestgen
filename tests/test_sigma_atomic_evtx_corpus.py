@@ -158,8 +158,13 @@ def test_same_powershell_predicate_matches_attack_but_not_benign(
     captured: dict[str, list[dict]] = {}
     real_runner = sigma_module.run_zircolite
 
-    def capturing_runner(evtx: Path, ruleset: str, config: str) -> list[dict]:
-        detections = real_runner(evtx, ruleset, config)
+    def capturing_runner(
+        evtx: Path,
+        ruleset: str,
+        config: str,
+        pipelines: tuple[str, ...] = (),
+    ) -> list[dict]:
+        detections = real_runner(evtx, ruleset, config, pipelines=pipelines)
         captured[evtx.name] = detections
         return detections
 
