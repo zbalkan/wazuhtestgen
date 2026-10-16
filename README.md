@@ -252,6 +252,18 @@ The test conditions within `unbound.ini` and `win_application.ini` are commented
 
 The test files with `test_*.ini` pattern are for pattern matching (OS_Regex, OS_Match, PCRE2) not rule tests, and files are excluded as a whole.
 
+## Development
+
+Install the development extra and run the same checks as CI. The ruff and mypy versions are pinned because their default checks change between releases; mypy needs Python 3.10 or newer.
+
+```shell
+python -m pip install -e ".[dev]"
+ruff format --check .
+ruff check .
+mypy
+python -m pytest
+```
+
 ## License
 
 GNU General Public License version 2 only. See [LICENSE](LICENSE).

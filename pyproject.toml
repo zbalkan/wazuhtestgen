@@ -45,7 +45,17 @@ sigma = [
 ]
 test = ["pytest>=8,<10"]
 build = ["build>=1.2", "twine>=5"]
-dev = ["pytest>=8,<10", "build>=1.2", "twine>=5"]
+# Exact pins: ruff's default rule set and mypy's checks change between
+# releases, so CI and local runs must use the same versions. mypy 2.x
+# needs Python >=3.10; the package itself still supports 3.9.
+lint = ["ruff==0.16.8", "mypy==2.3.1; python_version >= '3.10'"]
+dev = [
+  "pytest>=8,<10",
+  "build>=1.2",
+  "twine>=5",
+  "ruff==0.16.8",
+  "mypy==2.3.1; python_version >= '3.10'",
+]
 
 [project.scripts]
 wazuhtestgen = "wazuhtestgen.generator:run"
@@ -64,3 +74,16 @@ include = ["wazuhtestgen*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "--import-mode=prepend"
+
+[tool.ruff.lint.per-file-ignores]
+# Renaming would change the module's import path for no functional gain.
+"src/wazuhtestgen/internal/iniParser.py" = ["N999"]
+
+[tool.mypy]
+files = ["src"]
+strict = true
+
+[[tool.mypy.overrides]]
+# Windows-only dependency without type information.
+module = ["wazuhevtx", "wazuhevtx.*"]
+ignore_missing_imports = true
